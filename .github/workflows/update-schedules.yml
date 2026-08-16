@@ -2,8 +2,11 @@ name: Actualizar horarios de trenes
 
 on:
   schedule:
-    - cron: '0 3 * * *'   # Todos los días a las 3:00 AM UTC
-  workflow_dispatch:       # Permite ejecución manual desde la interfaz
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   update:
