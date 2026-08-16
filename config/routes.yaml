@@ -1,0 +1,18 @@
+trenes:
+  - nombre: "Merlo-Lobos"
+    carpeta: "Trenes/Merlo-Lobos"
+    origen: "Merlo"
+    destino: "Lobos"
+    tipos_dia:
+      - "Lunes-Viernes"
+      - "Sabado-Domingo-Feriados"
+  - nombre: "Catan-Lozano"
+    carpeta: "Trenes/Catan-Lozano"
+    origen: "González Catán"
+    destino: "Lozano"
+    tipos_dia:
+      - "Lunes-Viernes"
+      - "Sabado"
+      - "Domingo"
+      - "Feriados"
+      - "NoLaboral"
