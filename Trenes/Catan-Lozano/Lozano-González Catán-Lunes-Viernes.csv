@@ -1,0 +1,11 @@
+trip_id,estacion,hora_salida,hora_llegada,tipo_parada,servicio
+5702,Lozano,,,origen,5702
+5702,Villars,13:53,,paso,5702
+5702,Marcos Paz,14:23,14:22,paso,5702
+5702,20 de Junio,14:46,14:45,paso,5702
+5702,González Catán,15:06,15:06,destino,5702
+5708,Lozano,,,origen,5708
+5708,Villars,20:57,,paso,5708
+5708,Marcos Paz,21:27,21:26,paso,5708
+5708,20 de Junio,21:50,21:49,paso,5708
+5708,González Catán,22:10,22:10,destino,5708

@@ -1,0 +1,6 @@
+trip_id,estacion,hora_salida,hora_llegada,tipo_parada,servicio
+5706,Lozano,20:15,,origen,5706
+5706,Villars,20:41,20:39,paso,5706
+5706,Marcos Paz,21:11,21:10,paso,5706
+5706,20 de Junio,21:34,21:33,paso,5706
+5706,González Catán,21:54,21:54,destino,5706
