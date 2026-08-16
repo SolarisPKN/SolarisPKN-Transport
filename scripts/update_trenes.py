@@ -6,18 +6,19 @@ import pandas as pd
 from datetime import datetime, timedelta
 import zipfile
 import io
+import re
 
 # ====================================================
 #  CONFIGURACIÓN
 # ====================================================
-GTFS_URL_CDN = "https://cdn.buenosaires.gob.ar/datosabiertos/datasets/trenes-gtfs/trenes-gtfs.zip"
-API_BASE = "https://ariedro.dev/api-trenes"  # se usará como fallback, pero está rota
-GTFS_OFFICIAL = "https://data.buenosaires.gob.ar/dataset/trenes-gtfs/resource/f74dacd7-63df-4a56-80f5-b1f590c9199d"
+API_BASE = "https://ariedro.dev/api-trenes"
+GTFS_CDN_URL = "https://cdn.buenosaires.gob.ar/datosabiertos/datasets/trenes-gtfs/trenes-gtfs.zip"
+GTFS_OFICIAL_URL = "https://data.buenosaires.gob.ar/dataset/trenes-gtfs/resource/f74dacd7-63df-4a56-80f5-b1f590c9199d"
 
 # ====================================================
-#  HELPER DE REINTENTOS (5 intentos, backoff exponencial)
+#  1. HELPER DE REINTENTOS (5 intentos con backoff)
 # ====================================================
-def fetch_with_retries(url, params=None, retries=5, backoff=1.5, timeout=20):
+def fetch_with_retries(url, params=None, retries=5, backoff=1.5, timeout=30):
     for attempt in range(retries):
         try:
             resp = requests.get(url, params=params, timeout=timeout)
@@ -30,103 +31,31 @@ def fetch_with_retries(url, params=None, retries=5, backoff=1.5, timeout=20):
     raise Exception(f"Todos los {retries} reintentos fallaron para {url}")
 
 # ====================================================
-#  MÉTODO PRINCIPAL: GTFS desde CDN de Buenos Aires
-# ====================================================
-def fetch_from_gtfs_cdn(origen, destino):
-    """Descarga y procesa el GTFS del CDN de Buenos Aires para obtener horarios."""
-    try:
-        # Descargar el zip
-        resp = fetch_with_retries(GTFS_URL_CDN, retries=3)
-        with zipfile.ZipFile(io.BytesIO(resp.content)) as z:
-            # Leer archivos necesarios
-            with z.open("stops.txt") as f:
-                stops_df = pd.read_csv(f)
-            with z.open("stop_times.txt") as f:
-                stop_times_df = pd.read_csv(f)
-            with z.open("trips.txt") as f:
-                trips_df = pd.read_csv(f)
-            with z.open("routes.txt") as f:
-                routes_df = pd.read_csv(f)
-        
-        # Buscar IDs de las estaciones (búsqueda flexible)
-        origen_stop = stops_df[stops_df["stop_name"].str.contains(origen, case=False, na=False)]
-        destino_stop = stops_df[stops_df["stop_name"].str.contains(destino, case=False, na=False)]
-        
-        if origen_stop.empty or destino_stop.empty:
-            raise ValueError(f"No se encontraron las estaciones en GTFS: {origen} o {destino}")
-        
-        origen_id = origen_stop.iloc[0]["stop_id"]
-        destino_id = destino_stop.iloc[0]["stop_id"]
-        print(f"    GTFS: Estaciones encontradas (origen: {origen_id}, destino: {destino_id})")
-        
-        # Obtener los trip_ids que pasan por ambas estaciones
-        # 1. Filtrar stop_times por las estaciones origen y destino
-        stop_times_origen = stop_times_df[stop_times_df["stop_id"] == origen_id]
-        stop_times_destino = stop_times_df[stop_times_df["stop_id"] == destino_id]
-        
-        # Obtener los trip_ids comunes
-        trips_origen = set(stop_times_origen["trip_id"].unique())
-        trips_destino = set(stop_times_destino["trip_id"].unique())
-        trips_comunes = trips_origen.intersection(trips_destino)
-        
-        if not trips_comunes:
-            raise ValueError("No hay viajes que conecten ambas estaciones")
-        
-        # Construir un DataFrame con los horarios de salida desde el origen
-        # y llegada al destino (para cada trip_id)
-        resultados = []
-        for trip_id in trips_comunes:
-            # Hora de salida desde el origen
-            salida = stop_times_origen[stop_times_origen["trip_id"] == trip_id]["departure_time"].values
-            if len(salida) == 0:
-                continue
-            hora_salida = salida[0]
-            # Hora de llegada al destino
-            llegada = stop_times_destino[stop_times_destino["trip_id"] == trip_id]["arrival_time"].values
-            if len(llegada) == 0:
-                continue
-            hora_llegada = llegada[0]
-            resultados.append({
-                "origen": origen,
-                "destino": destino,
-                "hora_salida": hora_salida,
-                "hora_llegada": hora_llegada,
-                "trip_id": trip_id
-            })
-        
-        if not resultados:
-            raise ValueError("No se encontraron horarios para el par origen-destino")
-        
-        df = pd.DataFrame(resultados)
-        # Ordenar por hora de salida
-        df = df.sort_values("hora_salida")
-        return df
-        
-    except Exception as e:
-        print(f"    GTFS CDN falló: {e}")
-        raise
-
-# ====================================================
-#  FALLBACKS (API y GTFS oficial, ambos rotos o inestables)
+#  2. OBTENER ID DE ESTACIÓN (usando id_estacion)
 # ====================================================
 def get_station_id(station_name):
-    """Intenta obtener ID desde la API (proxy Ariedro) - actualmente falla."""
-    try:
-        resp = fetch_with_retries(f"{API_BASE}/infraestructura/estaciones", params={"nombre": station_name}, retries=2)
-        data = resp.json()
-        if not data:
-            raise ValueError(f"No se encontró la estación: {station_name}")
-        for estacion in data:
-            if estacion.get("nombre", "").lower() == station_name.lower():
-                return estacion.get("id")
-        return data[0].get("id")
-    except Exception as e:
-        raise ValueError(f"No se pudo obtener ID para {station_name}: {e}")
+    """Busca el ID de una estación por nombre usando la API."""
+    resp = fetch_with_retries(f"{API_BASE}/infraestructura/estaciones", params={"nombre": station_name})
+    data = resp.json()
+    if not data:
+        raise ValueError(f"No se encontró la estación: {station_name}")
+    
+    # Buscar coincidencia exacta (case insensitive)
+    for estacion in data:
+        if estacion.get("nombre", "").lower() == station_name.lower():
+            return int(estacion["id_estacion"])  # ← CLAVE CORRECTA: id_estacion
+    
+    # Si no hay coincidencia exacta, usar el primero
+    return int(data[0]["id_estacion"])  # ← CLAVE CORRECTA: id_estacion
 
+# ====================================================
+#  3. OBTENER HORARIOS DESDE API (método principal)
+# ====================================================
 def fetch_from_api(origen, destino, fecha, hora_inicio, cantidad=50):
-    """Obtiene horarios desde la API (falla actualmente)."""
+    """Obtiene horarios desde la API de SOFSE (vía proxy Ariedro)."""
     origen_id = get_station_id(origen)
     destino_id = get_station_id(destino)
+    
     params = {
         "hasta": destino_id,
         "fecha": fecha,
@@ -135,36 +64,131 @@ def fetch_from_api(origen, destino, fecha, hora_inicio, cantidad=50):
     }
     resp = fetch_with_retries(f"{API_BASE}/arribos/estacion/{origen_id}", params=params)
     data = resp.json()
+    
     rows = []
-    for item in data:
+    # La respuesta es un objeto con "results" que contiene los arribos
+    results = data.get("results", [])
+    for item in results:
+        arribo = item.get("arribo", {})
+        servicio = item.get("servicio", {})
+        
+        # Extraer hora de salida programada
+        salida_programada = arribo.get("salida", {}).get("programada", "")
+        if salida_programada:
+            # Formato ISO: "2026-08-16T15:44:00.000Z" → extraer solo hora
+            try:
+                dt = datetime.fromisoformat(salida_programada.replace('Z', '+00:00'))
+                hora_salida = dt.strftime("%H:%M")
+            except:
+                hora_salida = salida_programada
+        else:
+            hora_salida = ""
+        
         rows.append({
             "origen": origen,
             "destino": destino,
-            "hora_salida": item.get("hora"),
-            "fecha": item.get("fecha"),
-            "servicio": item.get("servicio", ""),
-            "tipo": item.get("tipo", "")
+            "hora_salida": hora_salida,
+            "fecha": fecha,
+            "servicio": servicio.get("numero", ""),
+            "tipo": servicio.get("tipo", {}).get("nombre", ""),
+            "ramal": servicio.get("ramal", {}).get("nombre", ""),
+            "sentido": servicio.get("sentido", ""),
+            "equipo": servicio.get("equipo", {}).get("nombre", "")
         })
-    return pd.DataFrame(rows)
-
-def fetch_from_gtfs_official(origen, destino):
-    """GTFS oficial (enlace roto)."""
-    try:
-        resp = fetch_with_retries(GTFS_OFFICIAL, retries=2)
-        # Si devuelve HTML, falla
-        if "text/html" in resp.headers.get("Content-Type", ""):
-            raise Exception("El recurso devuelve HTML, no ZIP")
-        with zipfile.ZipFile(io.BytesIO(resp.content)) as z:
-            # ... (similar al CDN, pero no llega)
-            pass
-    except Exception as e:
-        raise Exception(f"GTFS oficial falló: {e}")
+    
+    if not rows:
+        raise ValueError("No se encontraron servicios para el horario solicitado")
+    
+    return pd.DataFrame(rows).sort_values("hora_salida")
 
 # ====================================================
-#  ORQUESTADOR DE MÉTODOS
+#  4. FALLBACK: GTFS (por si la API falla)
+# ====================================================
+def fetch_from_gtfs(origen, destino, tipo_dia):
+    """Descarga y procesa el feed GTFS como fallback."""
+    def normalizar(n):
+        n = n.upper()
+        n = n.replace('Á','A').replace('É','E').replace('Í','I').replace('Ó','O').replace('Ú','U')
+        n = re.sub(r'\s+', ' ', n).strip()
+        return n
+    
+    try:
+        # Intentar primero con CDN, luego con oficial
+        urls = [GTFS_CDN_URL, GTFS_OFICIAL_URL]
+        stops_df = None
+        stop_times_df = None
+        trips_df = None
+        
+        for url in urls:
+            try:
+                print(f"    Descargando GTFS desde: {url}")
+                resp = fetch_with_retries(url, retries=2)
+                with zipfile.ZipFile(io.BytesIO(resp.content)) as z:
+                    with z.open("stops.txt") as f:
+                        stops_df = pd.read_csv(f)
+                    with z.open("stop_times.txt") as f:
+                        stop_times_df = pd.read_csv(f)
+                    with z.open("trips.txt") as f:
+                        trips_df = pd.read_csv(f)
+                break
+            except Exception as e:
+                print(f"    Falló descarga desde {url}: {e}")
+                continue
+        
+        if stops_df is None:
+            raise ValueError("No se pudo descargar el GTFS desde ninguna fuente")
+        
+        # Normalizar nombres de estaciones
+        stops_df['stop_name_norm'] = stops_df['stop_name'].apply(normalizar)
+        origen_norm = normalizar(origen)
+        destino_norm = normalizar(destino)
+        
+        # Buscar stop_ids
+        origen_stops = stops_df[stops_df['stop_name_norm'].str.contains(origen_norm, na=False)]
+        destino_stops = stops_df[stops_df['stop_name_norm'].str.contains(destino_norm, na=False)]
+        
+        if origen_stops.empty or destino_stops.empty:
+            raise ValueError(f"No se encontraron las estaciones en GTFS")
+        
+        origen_id = origen_stops.iloc[0]['stop_id']
+        destino_id = destino_stops.iloc[0]['stop_id']
+        
+        # Buscar viajes que conecten ambas estaciones
+        stop_times_origen = stop_times_df[stop_times_df['stop_id'] == origen_id]
+        stop_times_destino = stop_times_df[stop_times_df['stop_id'] == destino_id]
+        
+        trip_ids_origen = set(stop_times_origen['trip_id'].unique())
+        trip_ids_destino = set(stop_times_destino['trip_id'].unique())
+        trip_ids_comunes = trip_ids_origen.intersection(trip_ids_destino)
+        
+        if not trip_ids_comunes:
+            raise ValueError("No hay viajes que conecten ambas estaciones")
+        
+        rows = []
+        for trip_id in trip_ids_comunes:
+            hora_origen = stop_times_origen[stop_times_origen['trip_id'] == trip_id]['departure_time'].values
+            if len(hora_origen) > 0:
+                rows.append({
+                    'origen': origen,
+                    'destino': destino,
+                    'hora_salida': hora_origen[0],
+                    'trip_id': trip_id
+                })
+        
+        if not rows:
+            raise ValueError("No se encontraron horarios")
+        
+        return pd.DataFrame(rows).sort_values('hora_salida')
+        
+    except Exception as e:
+        print(f"    GTFS falló: {e}")
+        raise
+
+# ====================================================
+#  5. ORQUESTADOR DE MÉTODOS
 # ====================================================
 def obtener_fecha_para_tipo(tipo_dia):
-    """Devuelve una fecha representativa para el tipo de día (no se usa en GTFS, pero se mantiene)."""
+    """Devuelve una fecha representativa para cada tipo de día."""
     hoy = datetime.now()
     if tipo_dia == "Lunes-Viernes":
         days_until = (7 - hoy.weekday()) % 7
@@ -176,7 +200,7 @@ def obtener_fecha_para_tipo(tipo_dia):
         if days_until == 0:
             days_until = 7
         return (hoy + timedelta(days=days_until)).strftime("%Y-%m-%d")
-    elif tipo_dia in ["Domingo", "NoLaboral"]:
+    elif tipo_dia in ["Domingo", "NoLaboral", "Domingo-Feriado"]:
         days_until = (6 - hoy.weekday()) % 7
         if days_until == 0:
             days_until = 7
@@ -185,31 +209,34 @@ def obtener_fecha_para_tipo(tipo_dia):
         return hoy.strftime("%Y-%m-%d")
 
 def get_trenes(origen, destino, tipo_dia):
-    """Intenta múltiples métodos (prioridad: GTFS CDN → API → GTFS oficial)."""
-    # Solo usamos GTFS CDN porque es el único que funciona
-    # y devuelve datos en la estructura que necesitamos.
-    metodos = [
-        ("GTFS CDN", lambda: fetch_from_gtfs_cdn(origen, destino)),
-        # ("API SOFSE", lambda: fetch_from_api(origen, destino, obtener_fecha_para_tipo(tipo_dia), "00:00", 50)),
-        # ("GTFS oficial", lambda: fetch_from_gtfs_official(origen, destino))
-    ]
+    """Intenta múltiples métodos para obtener horarios."""
+    fecha = obtener_fecha_para_tipo(tipo_dia)
     
-    for nombre_metodo, func in metodos:
-        try:
-            print(f"  Intentando método: {nombre_metodo}")
-            df = func()
-            if not df.empty:
-                print(f"  ✅ Método '{nombre_metodo}' exitoso")
-                return df
-        except Exception as e:
-            print(f"  ❌ Método '{nombre_metodo}' falló: {e}")
-            continue
-    
+    # Método 1: API (prioridad)
+    try:
+        print("  Intentando método: API SOFSE")
+        df = fetch_from_api(origen, destino, fecha, "00:00", 60)
+        if not df.empty:
+            print("  ✅ Método 'API SOFSE' exitoso")
+            return df
+    except Exception as e:
+        print(f"  ❌ Método 'API SOFSE' falló: {e}")
+
+    # Método 2: GTFS (fallback)
+    try:
+        print("  Intentando método: GTFS")
+        df = fetch_from_gtfs(origen, destino, tipo_dia)
+        if not df.empty:
+            print("  ✅ Método 'GTFS' exitoso")
+            return df
+    except Exception as e:
+        print(f"  ❌ Método 'GTFS' falló: {e}")
+
     print(f"  ⚠️ Todos los métodos fallaron para {origen}->{destino} ({tipo_dia})")
     return pd.DataFrame()
 
 # ====================================================
-#  GUARDAR CSV (SOLO SI HAY CAMBIOS)
+#  6. GUARDAR CSV (SOLO SI HAY CAMBIOS)
 # ====================================================
 def guardar_si_cambia(df, ruta):
     os.makedirs(os.path.dirname(ruta), exist_ok=True)
@@ -223,7 +250,7 @@ def guardar_si_cambia(df, ruta):
     return True
 
 # ====================================================
-#  MAIN
+#  7. MAIN
 # ====================================================
 def main():
     with open("config/routes.yaml", "r") as f:
@@ -261,7 +288,6 @@ def main():
             else:
                 print(f"    ⚠️ No se obtuvieron datos para la vuelta")
 
-    # Si hubo cambios, el workflow hará commit; si no, no hará nada.
     return 0 if cambios else 1
 
 if __name__ == "__main__":
