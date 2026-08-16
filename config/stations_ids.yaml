@@ -1,0 +1,40 @@
+estaciones:
+  Merlo-Lobos:
+    - nombre: "Merlo"
+      id: 269
+    - nombre: "Km. 34,5"
+      id: 464
+    - nombre: "A. Ferrari"
+      id: 137
+    - nombre: "M. Acosta"
+      id: 257
+    - nombre: "Maquinista Ricardo Cal"
+      id: 4601
+    - nombre: "Marcos Paz"
+      id: 254
+    - nombre: "Zamudio"
+      id: 432
+    - nombre: "Hornos"
+      id: 173
+    - nombre: "Las Heras"
+      id: 225
+    - nombre: "Speratti"
+      id: 381
+    - nombre: "Zapiola"
+      id: 433
+    - nombre: "Emp. Lobos"
+      id: 129
+    - nombre: "Lobos"
+      id: 237
+
+  Catan-Lozano:
+    - nombre: "González Catán"
+      id: 154
+    - nombre: "20 de Junio"
+      id: 526
+    - nombre: "Marcos Paz"
+      id: 3700
+    - nombre: "Villars"
+      id: 4226
+    - nombre: "Lozano"
+      id: null

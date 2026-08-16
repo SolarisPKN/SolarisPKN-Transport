@@ -1,0 +1,22 @@
+estaciones:
+  Merlo-Lobos:
+    - "Merlo"
+    - "Km. 34,5"
+    - "A. Ferrari"
+    - "M. Acosta"
+    - "Maquinista Ricardo Cal"
+    - "Marcos Paz"
+    - "Zamudio"
+    - "Hornos"
+    - "Las Heras"
+    - "Speratti"
+    - "Zapiola"
+    - "Emp. Lobos"
+    - "Lobos"
+
+  Catan-Lozano:
+    - "González Catán"
+    - "20 de Junio"
+    - "Marcos Paz"
+    - "Villars"
+    - "Lozano"

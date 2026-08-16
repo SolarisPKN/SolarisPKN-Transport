@@ -3,13 +3,16 @@ trenes:
     carpeta: "Trenes/Merlo-Lobos"
     origen: "Merlo"
     destino: "Lobos"
+    ramal_key: "Merlo-Lobos"
     tipos_dia:
       - "Lunes-Viernes"
       - "Sabado-Domingo-Feriados"
+
   - nombre: "Catan-Lozano"
     carpeta: "Trenes/Catan-Lozano"
     origen: "González Catán"
     destino: "Lozano"
+    ramal_key: "Catan-Lozano"
     tipos_dia:
       - "Lunes-Viernes"
       - "Sabado"
