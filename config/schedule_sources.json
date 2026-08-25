@@ -1,0 +1,216 @@
+{
+  "version": 1,
+  "timezone": "America/Argentina/Buenos_Aires",
+  "days": {
+    "Laboral": 1,
+    "Sabado": 5,
+    "Domingo": 6
+  },
+  "routes": [
+    {
+      "id": "tren-catan-lozano",
+      "provider": "sofse",
+      "folder": "Horarios/Trenes/Catan-Lozano",
+      "type": "Tren",
+      "branch": "Belgrano Sur",
+      "company": "Trenes Argentinos",
+      "route": "González Catán - Lozano",
+      "website": "https://www.argentina.gob.ar/transporte/trenes-argentinos/horarios-tarifas-y-recorridos-de-trenes/gonzalez-catan-lozano",
+      "source_url": "https://api-servicios.sofse.gob.ar/v1/arribos/estacion/154",
+      "days": ["Laboral", "Sabado", "Domingo"],
+      "directions": [
+        {
+          "file_suffix": "Lozano",
+          "destination": "Lozano",
+          "query_station_id": 154,
+          "branch_id": 67,
+          "direction": 1,
+          "allow_short_turns": true,
+          "stations": [
+            {"name": "González Catán", "id": 154},
+            {"name": "20 de Junio", "id": 526},
+            {"name": "Marcos Paz", "id": 3700},
+            {"name": "Villars", "id": 4226},
+            {"name": "Lozano", "id": 6000}
+          ]
+        },
+        {
+          "file_suffix": "Catan",
+          "destination": "González Catán",
+          "query_station_ids": [6000, 4226, 3700, 526],
+          "destination_id": 154,
+          "branch_id": 67,
+          "direction": 2,
+          "allow_short_turns": true,
+          "stations": [
+            {"name": "Lozano", "id": 6000},
+            {"name": "Villars", "id": 4226},
+            {"name": "Marcos Paz", "id": 3700},
+            {"name": "20 de Junio", "id": 526},
+            {"name": "González Catán", "id": 154}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tren-merlo-lobos",
+      "provider": "sofse",
+      "folder": "Horarios/Trenes/Merlo-Lobos",
+      "type": "Tren",
+      "branch": "Sarmiento",
+      "company": "Trenes Argentinos",
+      "route": "Merlo - Lobos",
+      "website": "https://www.argentina.gob.ar/transporte/trenes-argentinos/horarios-tarifas-y-recorridos-de-trenes/linea-sarmiento",
+      "source_url": "https://api-servicios.sofse.gob.ar/v1/arribos/estacion/269",
+      "days": ["Laboral", "Sabado", "Domingo"],
+      "directions": [
+        {
+          "file_suffix": "LasHeras",
+          "destination": "Las Heras",
+          "query_station_id": 269,
+          "branch_id": 53,
+          "direction": 1,
+          "allow_short_turns": true,
+          "stations": [
+            {"name": "Merlo", "id": 269},
+            {"name": "Km 34,5", "id": 464},
+            {"name": "A. Ferrari", "id": 137},
+            {"name": "Mariano Acosta", "id": 257},
+            {"name": "Maquinista R. Cal", "id": 4601},
+            {"name": "Marcos Paz", "id": 254},
+            {"name": "Zamudio", "id": 432},
+            {"name": "Hornos", "id": 173},
+            {"name": "Las Heras", "id": 225}
+          ]
+        },
+        {
+          "file_suffix": "Merlo",
+          "destination": "Merlo",
+          "query_station_ids": [225],
+          "destination_id": 269,
+          "branch_id": 53,
+          "direction": 2,
+          "allow_short_turns": true,
+          "stations": [
+            {"name": "Las Heras", "id": 225},
+            {"name": "Hornos", "id": 173},
+            {"name": "Zamudio", "id": 432},
+            {"name": "Marcos Paz", "id": 254},
+            {"name": "Maquinista R. Cal", "id": 4601},
+            {"name": "Mariano Acosta", "id": 257},
+            {"name": "A. Ferrari", "id": 137},
+            {"name": "Km 34,5", "id": 464},
+            {"name": "Merlo", "id": 269}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "colectivo-136-rapido",
+      "provider": "cuando_subo",
+      "folder": "Horarios/Colectivos/136-Rapido",
+      "type": "Colectivo",
+      "branch": "136 Ramal A",
+      "company": "SARGENTO CABRAL S.A.DE TRANSPORTE",
+      "route": "Primera Junta - Navarro",
+      "website": "https://www.argentina.gob.ar/sube/cuandosubo",
+      "source_url": "https://cuandosubo.sube.gob.ar/onebusaway-api-webapp/api/where",
+      "days": ["Laboral", "Sabado", "Domingo"],
+      "directions": [
+        {
+          "file_suffix": "Navarro",
+          "destination": "Navarro",
+          "route_id": "739_670",
+          "stations": [
+            {"name": "Primera Junta", "stop_id": "14_lti2"},
+            {"name": "Marcos Paz", "stop_id": "14_6525104506"},
+            {"name": "Las Heras", "stop_id": "14_6329104518"},
+            {"name": "Navarro", "stop_id": "14_3kfr"}
+          ]
+        },
+        {
+          "file_suffix": "PrimeraJunta",
+          "destination": "Primera Junta",
+          "route_id": "739_671",
+          "stations": [
+            {"name": "Navarro", "stop_id": "14_3kfr"},
+            {"name": "Marcos Paz", "stop_id": "14_6525104059"},
+            {"name": "Primera Junta", "stop_id": "14_201173"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "colectivo-322-lujan",
+      "provider": "cuando_subo",
+      "folder": "Horarios/Colectivos/322-Lujan",
+      "type": "Colectivo",
+      "branch": "322 Luján",
+      "company": "LIBERTADOR SAN MARTIN SAT",
+      "route": "Marcos Paz - Luján",
+      "website": "https://www.argentina.gob.ar/sube/cuandosubo",
+      "source_url": "https://cuandosubo.sube.gob.ar/onebusaway-api-webapp/api/where",
+      "days": ["Laboral", "Sabado", "Domingo"],
+      "directions": [
+        {
+          "file_suffix": "Lujan",
+          "destination": "Luján",
+          "route_id": "135_1623",
+          "stations": [
+            {"name": "Marcos Paz", "stop_id": "14_06525000111"},
+            {"name": "Las Heras", "stop_id": "14_06329000014"},
+            {"name": "Villars", "stop_id": "14_06329000003"},
+            {"name": "Plomer", "stop_id": "14_06329000001"},
+            {"name": "Luján", "stop_id": "14_06497000101"}
+          ]
+        },
+        {
+          "file_suffix": "MarcosPaz",
+          "destination": "Marcos Paz",
+          "route_id": "135_1624",
+          "stations": [
+            {"name": "Luján", "stop_id": "14_06497000101"},
+            {"name": "Plomer", "stop_id": "14_06329000002"},
+            {"name": "Villars", "stop_id": "14_06329000003"},
+            {"name": "Las Heras", "stop_id": "14_06329000014"},
+            {"name": "Marcos Paz", "stop_id": "14_06525000101"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "colectivo-322-canuelas",
+      "provider": "cuando_subo",
+      "folder": "Horarios/Colectivos/322-Canuelas",
+      "type": "Colectivo",
+      "branch": "322 Cañuelas",
+      "company": "LIBERTADOR SAN MARTIN SAT",
+      "route": "Marcos Paz - Cañuelas",
+      "website": "https://www.argentina.gob.ar/sube/cuandosubo",
+      "source_url": "https://cuandosubo.sube.gob.ar/onebusaway-api-webapp/api/where",
+      "days": ["Laboral", "Sabado", "Domingo"],
+      "directions": [
+        {
+          "file_suffix": "Canuelas",
+          "destination": "Cañuelas",
+          "route_id": "135_1625",
+          "stations": [
+            {"name": "Marcos Paz", "stop_id": "14_06525000111"},
+            {"name": "Las Heras", "stop_id": "14_06329000014"},
+            {"name": "Cañuelas", "stop_id": "14_06134000038"}
+          ]
+        },
+        {
+          "file_suffix": "MarcosPaz",
+          "destination": "Marcos Paz",
+          "route_id": "135_1626",
+          "stations": [
+            {"name": "Cañuelas", "stop_id": "14_06134000038"},
+            {"name": "Las Heras", "stop_id": "14_06329000014"},
+            {"name": "Marcos Paz", "stop_id": "14_06525000101"}
+          ]
+        }
+      ]
+    }
+  ]
+}

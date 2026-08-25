@@ -37,4 +37,4 @@ estaciones:
     - nombre: "Villars"
       id: 4226
     - nombre: "Lozano"
-      id: null
+      id: 6000

@@ -1,6 +1,0 @@
-trip_id,estacion,hora_salida,hora_llegada,tipo_parada,servicio
-5705,González Catán,18:21,,origen,5705
-5705,20 de Junio,18:41,18:40,paso,5705
-5705,Marcos Paz,19:04,19:03,paso,5705
-5705,Villars,19:34,19:33,paso,5705
-5705,Lozano,20:02,20:02,destino,5705

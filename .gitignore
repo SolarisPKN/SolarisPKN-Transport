@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.solaris-xlsx-*/
+
+# Los paquetes móviles se usan para investigación local y no se versionan.
+research/apk/
+research/xapk/
