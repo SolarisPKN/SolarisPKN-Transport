@@ -26,7 +26,7 @@ API oficial -> candidato en memoria -> validación semántica
                     consulta estable desde la aplicación web
 ```
 
-La configuración declarativa vive en `config/schedule_sources.json`. Cada salida tiene empresa, recorrido, día, sentido, estaciones, vigencia, enlaces y método de actualización.
+La lista de recorridos habilitados vive en `ramales.xlsx`, hoja `Configurador`. La hoja `Lista de ramales` cachea durante siete días el catálogo visible de SOFSE y OneBusAway con nombres e identificadores técnicos. `config/schedule_sources.json` conserva únicamente los perfiles revisados y overrides de los recorridos originales; una selección nueva se resuelve desde el catálogo y genera automáticamente carpeta, sentidos y salidas. Cada salida tiene empresa, recorrido, día, sentido, estaciones, vigencia, enlaces y método de actualización.
 
 Un XLSX sólo se reemplaza cuando:
 
@@ -49,6 +49,7 @@ Ventajas:
 - Una respuesta parcial nunca destruye el último cronograma confiable.
 - La celda `A24` permite distinguir datos manuales de datos obtenidos por API.
 - GitHub Actions evita commits diarios vacíos: la base sólo se reconstruye si cambió un XLSX o se fuerza manualmente.
+- Un usuario puede incorporar un recorrido publicado agregando su nombre o ID al configurador sin editar Python ni JSON.
 
 Costos y límites:
 
@@ -56,6 +57,7 @@ Costos y límites:
 - `Laboral`, `Sabado` y `Domingo` usan la próxima fecha representativa; no se inventan reglas para feriados.
 - El recorrido se identifica históricamente como Merlo–Lobos. Las Heras se registra como cabecera operativa temporal y los servicios cortos se conservan porque reflejan los cortes publicados.
 - La posición en vivo no forma parte del snapshot. Debe consultarse por separado y degradar al cronograma local si falla.
+- Ninguna fuente comprobada ofrece GraphQL. El catálogo reduce el costo de descubrimiento y, en colectivos nuevos, se consultan como máximo doce paradas representativas porque la instancia de Cuándo SUBO no habilita el cronograma REST completo por recorrido.
 
 ## Alternativas descartadas
 

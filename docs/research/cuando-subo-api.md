@@ -28,7 +28,11 @@ stops-for-route/{route}.json
 schedule-for-stop/{stop}.json?date=AAAA-MM-DD&key=web
 ```
 
-OneBusAway no ofrece en esta instancia un cronograma completo por recorrido. El conector consulta `schedule-for-stop` para cada parada configurada, filtra el `routeId` exacto y une las respuestas por `tripId`. De esa unión sale la matriz formación × parada.
+El backend no expone GraphQL. Aunque OneBusAway documenta el método REST `schedule-for-route`, esta instancia responde `404`; `trips-for-route?includeSchedule=true` sí existe, pero sólo devuelve viajes activos alrededor del instante consultado y no reemplaza al cronograma diario.
+
+OneBusAway no ofrece en esta instancia un cronograma completo por recorrido. El conector consulta `schedule-for-stop` para cada parada configurada, filtra el `routeId` exacto y une las respuestas por `tripId`. De esa unión sale la matriz formación × parada. Para recorridos autodescubiertos se limitan las consultas a las cabeceras y hasta doce paradas uniformemente distribuidas; los perfiles revisados manualmente conservan sus puntos exactos.
+
+El catálogo de `routes-for-agency` se agrupa por servicio y se cachea durante siete días en `ramales.xlsx`, hoja `Lista de ramales`. Así, el barrido de agencies no se repite en la ejecución diaria normal.
 
 ## Identificadores confirmados
 

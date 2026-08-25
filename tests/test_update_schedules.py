@@ -14,10 +14,14 @@ from procesar_horarios import (
 )
 from scripts.update_schedules import (
     CuandoSuboProvider,
+    DEFAULT_BRANCHES,
     ScheduleSnapshot,
     SourceUnavailable,
+    _catalog_match,
     build_sofse_credentials,
     create_workbook,
+    load_branch_catalog,
+    load_branch_selections,
     next_weekday,
     update_target,
     validate_snapshot,
@@ -46,6 +50,33 @@ DIRECTION = {
 
 
 class UpdateSchedulesTests(unittest.TestCase):
+    def test_ramales_workbook_is_the_source_of_enabled_routes(self):
+        selections = load_branch_selections(DEFAULT_BRANCHES)
+        self.assertTrue(
+            {"González Catán - Lozano", "Merlo - Lobos"}
+            <= set(selections["Tren"]),
+        )
+        self.assertTrue({
+            "136 A - Primera Junta - Navarro",
+            "322 - Marcos Paz - Luján",
+            "322 - Marcos Paz - Cañuelas",
+        } <= set(selections["Colectivo"]))
+        catalog = load_branch_catalog(DEFAULT_BRANCHES)
+        self.assertGreater(len(catalog), 1000)
+        once = _catalog_match("Once - Moreno", "Tren", catalog)
+        self.assertIsNotNone(once)
+        self.assertEqual(once["ID API"], "1")
+
+    def test_discovered_bus_stops_are_bounded_and_keep_endpoints(self):
+        stops = [
+            {"name": f"Parada {index}", "stop_id": str(index)}
+            for index in range(100)
+        ]
+        sampled = CuandoSuboProvider._sample_stops(stops)
+        self.assertEqual(len(sampled), 12)
+        self.assertEqual(sampled[0], stops[0])
+        self.assertEqual(sampled[-1], stops[-1])
+
     def test_next_weekday_includes_today(self):
         tuesday = dt.date(2026, 8, 25)
         self.assertEqual(next_weekday(tuesday, 1), tuesday)

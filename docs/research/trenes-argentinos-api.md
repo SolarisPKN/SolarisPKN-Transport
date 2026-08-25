@@ -23,6 +23,8 @@ POST /auth/authorize
 GET  /arribos/estacion/{id}?ramal={id}&sentido={id}&cantidad={n}&fecha={AAAA-MM-DD}
 ```
 
+El catálogo autodescubrible usa además `GET /infraestructura/gerencias`, `GET /infraestructura/ramales?idGerencia={id}` y `GET /infraestructura/estaciones?idRamal={id}`. La aplicación y la API comprobadas no exponen GraphQL; estos listados REST se cachean en la hoja `Lista de ramales` de `ramales.xlsx`.
+
 El primer endpoint recibe la credencial diaria que genera el cliente oficial y devuelve un token temporal. El conector reproduce ese cálculo con la zona horaria de Argentina y no almacena cuentas, contraseñas ni tokens permanentes.
 
 La respuesta de `arribos` contiene el servicio y sus paradas. Se filtra por fecha operativa y se unen consultas desde más de una estación de origen cuando un solo origen no descubre todos los servicios del día. Esto fue necesario para representar correctamente los recorridos cortos y los cortes actuales del ramal Merlo–Lobos, cuya cabecera operativa temporal es Las Heras.

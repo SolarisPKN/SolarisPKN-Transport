@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import base64
 import datetime as dt
+import difflib
 import json
 import logging
 import os
@@ -35,6 +36,7 @@ from openpyxl.worksheet.table import Table
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CONFIG = PROJECT_ROOT / "config" / "schedule_sources.json"
+DEFAULT_BRANCHES = PROJECT_ROOT / "ramales.xlsx"
 ARGENTINA_TZ = ZoneInfo("America/Argentina/Buenos_Aires")
 SOFSE_BASE_URL = "https://api-servicios.sofse.gob.ar/v1"
 CUANDO_SUBO_BASE_URL = (
@@ -43,6 +45,7 @@ CUANDO_SUBO_BASE_URL = (
 CUANDO_SUBO_API_KEY = "web"
 DEFAULT_TIMEOUT = 15
 HTTP_RETRIES = 2
+MAX_AUTODISCOVERED_BUS_STOPS = 12
 
 logger = logging.getLogger("solaris.update")
 
@@ -71,6 +74,133 @@ def normalize_text(value: Any) -> str:
     text = unicodedata.normalize("NFKD", str(value or ""))
     text = "".join(ch for ch in text if not unicodedata.combining(ch))
     return re.sub(r"\s+", " ", text.casefold()).strip()
+
+
+def slugify(value: Any) -> str:
+    normalized = normalize_text(value)
+    return re.sub(r"[^a-z0-9]+", "-", normalized).strip("-")
+
+
+def compact_suffix(value: Any) -> str:
+    words = re.findall(r"[a-z0-9]+", normalize_text(value))
+    return "".join(word.capitalize() for word in words) or "Destino"
+
+
+def folder_component(value: Any) -> str:
+    words = re.findall(r"[a-z0-9]+", normalize_text(value))
+    return "-".join(word.capitalize() for word in words) or "Ramal"
+
+
+def _configured_route_names(route: dict[str, Any]) -> set[str]:
+    values = {
+        route.get("id"),
+        route.get("route"),
+        route.get("branch"),
+        f"{route.get('branch', '')} {route.get('route', '')}",
+        *(route.get("selectors") or []),
+    }
+    return {normalize_text(value) for value in values if value}
+
+
+def load_branch_selections(path: Path) -> dict[str, list[str]]:
+    """Lee únicamente las dos columnas editables de ramales.xlsx."""
+    try:
+        workbook = load_workbook(path, read_only=True, data_only=True)
+    except (OSError, ValueError) as exc:
+        raise ConfigurationError(f"No se pudo leer el configurador {path}: {exc}") from exc
+    try:
+        if "Configurador" not in workbook.sheetnames:
+            raise ConfigurationError(
+                f"{path} no contiene la hoja Configurador"
+            )
+        sheet = workbook["Configurador"]
+        headers = {
+            normalize_text(sheet.cell(row=1, column=column).value): column
+            for column in range(1, 3)
+        }
+        if "tren" not in headers or "colectivos" not in headers:
+            raise ConfigurationError(
+                "La hoja Configurador debe tener las columnas Tren y Colectivos"
+            )
+        result = {"Tren": [], "Colectivo": []}
+        for type_name, header in (("Tren", "tren"), ("Colectivo", "colectivos")):
+            seen: set[str] = set()
+            column = headers[header]
+            for row_values in sheet.iter_rows(
+                min_row=2, min_col=column, max_col=column, values_only=True,
+            ):
+                value = str(row_values[0] or "").strip()
+                key = normalize_text(value)
+                if value and key not in seen:
+                    result[type_name].append(value)
+                    seen.add(key)
+        if not any(result.values()):
+            raise ConfigurationError("ramales.xlsx no contiene ramales para procesar")
+        return result
+    finally:
+        workbook.close()
+
+
+def load_branch_catalog(path: Path) -> list[dict[str, str]]:
+    """Carga el catálogo técnico cacheado en la segunda hoja."""
+    workbook = load_workbook(path, read_only=True, data_only=True)
+    try:
+        if "Lista de ramales" not in workbook.sheetnames:
+            return []
+        sheet = workbook["Lista de ramales"]
+        headers = [
+            str(sheet.cell(row=1, column=column).value or "").strip()
+            for column in range(1, 8)
+        ]
+        rows: list[dict[str, str]] = []
+        for values in sheet.iter_rows(min_row=2, min_col=1, max_col=7, values_only=True):
+            row = {
+                header: str(value or "").strip()
+                for header, value in zip(headers, values)
+                if header
+            }
+            if row.get("Tipo") and row.get("ID API"):
+                rows.append(row)
+        return rows
+    finally:
+        workbook.close()
+
+
+def _catalog_match(
+    selection: str, type_name: str, catalog: list[dict[str, str]],
+) -> dict[str, str] | None:
+    wanted = normalize_text(selection)
+    wanted_key = slugify(selection)
+    candidates: list[tuple[float, dict[str, str]]] = []
+    requested_ids = set(re.findall(r"\d+_\d+|(?<!\d)\d+(?!\d)", selection))
+    for row in catalog:
+        if normalize_text(row.get("Tipo")) != normalize_text(type_name):
+            continue
+        row_ids = set(re.findall(r"\d+_\d+|(?<!\d)\d+(?!\d)", row.get("ID API", "")))
+        fields = [
+            row.get("Nombre API", ""),
+            row.get("Linea / ramal", ""),
+            row.get("Descripcion", ""),
+            row.get("ID API", ""),
+        ]
+        normalized_fields = [normalize_text(field) for field in fields if field]
+        if (
+            any(wanted_key == slugify(field) for field in fields if field)
+            or wanted in normalized_fields
+            or (requested_ids and requested_ids <= row_ids)
+        ):
+            return row
+        haystack = " ".join(normalized_fields)
+        ratio = difflib.SequenceMatcher(None, wanted, haystack).ratio()
+        wanted_tokens = set(wanted.split())
+        token_score = len(wanted_tokens & set(haystack.split())) / max(1, len(wanted_tokens))
+        candidates.append((ratio * 0.45 + token_score * 0.55, row))
+    candidates.sort(key=lambda pair: pair[0], reverse=True)
+    if not candidates or candidates[0][0] < 0.58:
+        return None
+    if len(candidates) > 1 and candidates[0][0] - candidates[1][0] < 0.04:
+        return None
+    return candidates[0][1]
 
 
 def next_weekday(today: dt.date, weekday: int) -> dt.date:
@@ -320,6 +450,136 @@ class SofseProvider:
         validate_snapshot(snapshot, bool(direction.get("allow_short_turns")))
         return snapshot
 
+    @staticmethod
+    def _response_items(response: Any) -> list[dict[str, Any]]:
+        if isinstance(response, list):
+            return response
+        for key in ("results", "resultado", "data"):
+            if isinstance(response, dict) and isinstance(response.get(key), list):
+                return response[key]
+        return []
+
+    def _discover_direction(
+        self,
+        branch_id: int,
+        direction_number: int,
+        origin_id: int,
+        destination_id: int,
+        source_date: dt.date,
+    ) -> dict[str, Any]:
+        response = self.get(
+            f"/arribos/estacion/{origin_id}",
+            {
+                "hasta": destination_id,
+                "fecha": source_date.isoformat(),
+                "hora": "00:00",
+                "cantidad": 100,
+                "paraApp": "true",
+                "ramal": branch_id,
+                "sentido": direction_number,
+            },
+        )
+        itineraries: list[list[dict[str, Any]]] = []
+        for item in self._response_items(response):
+            service = item.get("servicio", item)
+            try:
+                item_direction = int(service.get("sentido", direction_number))
+            except (TypeError, ValueError):
+                continue
+            stations = [
+                station for station in service.get("estaciones", [])
+                if station.get("idElemento") is not None and station.get("nombre")
+            ]
+            if item_direction == direction_number and len(stations) >= 2:
+                itineraries.append(stations)
+        if not itineraries:
+            raise SourceUnavailable(
+                f"SOFSE no publicó itinerarios del ramal {branch_id}, sentido "
+                f"{direction_number}, para {source_date.isoformat()}"
+            )
+        stations = max(itineraries, key=len)
+        return {
+            "file_suffix": compact_suffix(stations[-1]["nombre"]),
+            "destination": str(stations[-1]["nombre"]),
+            "query_station_id": int(stations[0]["idElemento"]),
+            "destination_id": int(stations[-1]["idElemento"]),
+            "branch_id": branch_id,
+            "direction": direction_number,
+            "allow_short_turns": True,
+            "stations": [
+                {"name": str(station["nombre"]), "id": int(station["idElemento"])}
+                for station in stations
+            ],
+        }
+
+    def discover_route_config(
+        self,
+        selection: str,
+        catalog_row: dict[str, str],
+        source_date: dt.date,
+    ) -> dict[str, Any]:
+        try:
+            branch_id = int(re.search(r"\d+", catalog_row["ID API"]).group())
+        except (AttributeError, KeyError, ValueError) as exc:
+            raise ConfigurationError(
+                f"ID SOFSE inválido para {selection}: {catalog_row.get('ID API')}"
+            ) from exc
+
+        stations_response = self.get(
+            "/infraestructura/estaciones", {"idRamal": branch_id},
+        )
+        stations = self._response_items(stations_response)
+        if len(stations) < 2:
+            raise SourceUnavailable(f"SOFSE no devolvió estaciones para {selection}")
+
+        branch_name = catalog_row.get("Nombre API") or selection
+        endpoint_names = [
+            part.strip() for part in re.split(r"\s*[-–—]\s*", branch_name)
+            if part.strip()
+        ]
+
+        def station_for(name: str, fallback: dict[str, Any]) -> dict[str, Any]:
+            wanted = normalize_text(name)
+            ranked = sorted(
+                stations,
+                key=lambda station: difflib.SequenceMatcher(
+                    None, wanted, normalize_text(station.get("nombre")),
+                ).ratio(),
+                reverse=True,
+            )
+            return ranked[0] if ranked else fallback
+
+        first = station_for(endpoint_names[0], stations[0]) if endpoint_names else stations[0]
+        last = station_for(endpoint_names[-1], stations[-1]) if endpoint_names else stations[-1]
+        try:
+            first_id = int(first["id_estacion"])
+            last_id = int(last["id_estacion"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise SourceUnavailable(
+                f"SOFSE no devolvió IDs de cabecera utilizables para {selection}"
+            ) from exc
+
+        directions = [
+            self._discover_direction(branch_id, 1, first_id, last_id, source_date),
+            self._discover_direction(branch_id, 2, last_id, first_id, source_date),
+        ]
+        return {
+            "id": f"tren-{slugify(selection)}",
+            "provider": "sofse",
+            "folder": f"Horarios/Trenes/{folder_component(selection)}",
+            "type": "Tren",
+            "branch": catalog_row.get("Linea / ramal") or "Trenes Argentinos",
+            "company": "Trenes Argentinos",
+            "route": selection,
+            "website": (
+                "https://www.argentina.gob.ar/transporte/trenes-argentinos/"
+                "horarios-tarifas-y-recorridos-de-trenes"
+            ),
+            "source_url": f"{SOFSE_BASE_URL}/arribos/estacion/{first_id}",
+            "days": ["Laboral", "Sabado", "Domingo"],
+            "directions": directions,
+        }
+
 
 class CuandoSuboProvider:
     def __init__(self, http: JsonHttpClient):
@@ -400,6 +660,107 @@ class CuandoSuboProvider:
         )
         validate_snapshot(snapshot, False)
         return snapshot
+
+    def stops_for_route(self, route_id: str) -> tuple[dict[str, Any], list[dict[str, str]]]:
+        query = urllib.parse.urlencode({"key": CUANDO_SUBO_API_KEY})
+        response = self.http.request(
+            f"{CUANDO_SUBO_BASE_URL}/stops-for-route/{route_id}.json?{query}"
+        )
+        if response.get("code") != 200:
+            raise SourceUnavailable(
+                f"Cuándo SUBO no pudo describir {route_id}: {response.get('text')}"
+            )
+        data = response.get("data", {})
+        entry = data.get("entry") or {}
+        references = data.get("references") or {}
+        stops_by_id = {
+            str(stop.get("id")): stop
+            for stop in references.get("stops", [])
+            if stop.get("id")
+        }
+        groups = []
+        for grouping in entry.get("stopGroupings", []):
+            for group in grouping.get("stopGroups", []):
+                stop_ids = [str(value) for value in group.get("stopIds", [])]
+                if stop_ids:
+                    groups.append((stop_ids, group))
+        ordered_ids = max(groups, key=lambda pair: len(pair[0]))[0] if groups else [
+            str(value) for value in entry.get("stopIds", [])
+        ]
+        ordered_stops = [
+            {
+                "name": str(stops_by_id.get(stop_id, {}).get("name") or stop_id),
+                "stop_id": stop_id,
+            }
+            for stop_id in ordered_ids
+        ]
+        target_route = next(
+            (
+                route for route in references.get("routes", [])
+                if str(route.get("id")) == route_id
+            ),
+            {"id": route_id},
+        )
+        return target_route, ordered_stops
+
+    @staticmethod
+    def _sample_stops(stops: list[dict[str, str]]) -> list[dict[str, str]]:
+        """Limita llamadas conservando cabeceras y puntos uniformes del recorrido."""
+        if len(stops) <= MAX_AUTODISCOVERED_BUS_STOPS:
+            return stops
+        last = len(stops) - 1
+        indexes = {
+            round(index * last / (MAX_AUTODISCOVERED_BUS_STOPS - 1))
+            for index in range(MAX_AUTODISCOVERED_BUS_STOPS)
+        }
+        return [stops[index] for index in sorted(indexes)]
+
+    def discover_route_config(
+        self,
+        selection: str,
+        catalog_row: dict[str, str],
+    ) -> dict[str, Any]:
+        route_ids = list(dict.fromkeys(re.findall(r"\d+_\d+", catalog_row.get("ID API", ""))))
+        if not route_ids:
+            raise ConfigurationError(
+                f"La fila de catálogo de {selection} no contiene IDs OneBusAway"
+            )
+        directions: list[dict[str, Any]] = []
+        for route_id in route_ids:
+            route_info, all_stops = self.stops_for_route(route_id)
+            if len(all_stops) < 2:
+                raise SourceUnavailable(f"{route_id} no contiene suficientes paradas")
+            description = str(route_info.get("description") or "")
+            destination = (
+                description.rsplit(":", 1)[-1].strip()
+                if ":" in description else all_stops[-1]["name"]
+            )
+            directions.append({
+                "file_suffix": compact_suffix(destination),
+                "destination": destination,
+                "route_id": route_id,
+                "stations": self._sample_stops(all_stops),
+                "discovered_total_stops": len(all_stops),
+            })
+        suffixes: set[str] = set()
+        for direction in directions:
+            suffix = direction["file_suffix"]
+            if suffix in suffixes:
+                direction["file_suffix"] = f"{suffix}{direction['route_id'].split('_')[-1]}"
+            suffixes.add(direction["file_suffix"])
+        return {
+            "id": f"colectivo-{slugify(selection)}",
+            "provider": "cuando_subo",
+            "folder": f"Horarios/Colectivos/{folder_component(selection)}",
+            "type": "Colectivo",
+            "branch": catalog_row.get("Linea / ramal") or selection,
+            "company": catalog_row.get("Empresa / agencia") or "Operador publicado por SUBE",
+            "route": selection,
+            "website": "https://www.argentina.gob.ar/sube/cuandosubo",
+            "source_url": CUANDO_SUBO_BASE_URL,
+            "days": ["Laboral", "Sabado", "Domingo"],
+            "directions": directions,
+        }
 
 
 def safe_table_name(route_id: str, day: str, suffix: str) -> str:
@@ -576,9 +937,73 @@ def load_config(path: Path) -> dict[str, Any]:
     return config
 
 
+def resolve_requested_routes(
+    config: dict[str, Any],
+    branches_path: Path,
+    providers: dict[str, Any],
+    today: dt.date,
+) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
+    selections = load_branch_selections(branches_path)
+    catalog = load_branch_catalog(branches_path)
+    configured = config["routes"]
+    resolved: list[dict[str, Any]] = []
+    unresolved: list[dict[str, str]] = []
+    seen: set[str] = set()
+    discovery_date = next_weekday(today, int(config["days"].get("Laboral", 0)))
+
+    for type_name, values in selections.items():
+        for selection in values:
+            wanted = normalize_text(selection)
+            route = next(
+                (
+                    candidate for candidate in configured
+                    if normalize_text(candidate.get("type")) == normalize_text(type_name)
+                    and wanted in _configured_route_names(candidate)
+                ),
+                None,
+            )
+            try:
+                if route is None:
+                    catalog_row = _catalog_match(selection, type_name, catalog)
+                    if catalog_row is None:
+                        raise SourceUnavailable(
+                            "No hubo una coincidencia única en Lista de ramales"
+                        )
+                    provider_name = normalize_text(catalog_row.get("Proveedor"))
+                    if type_name == "Tren" and provider_name == "sofse":
+                        route = providers["sofse"].discover_route_config(
+                            selection, catalog_row, discovery_date,
+                        )
+                    elif type_name == "Colectivo" and provider_name in {
+                        "cuando subo", "cuando_subo", "onebusaway",
+                    }:
+                        route = providers["cuando_subo"].discover_route_config(
+                            selection, catalog_row,
+                        )
+                    else:
+                        raise SourceUnavailable(
+                            f"Proveedor no soportado en catálogo: {catalog_row.get('Proveedor')}"
+                        )
+            except (SourceUnavailable, ConfigurationError, KeyError) as exc:
+                unresolved.append({
+                    "type": type_name,
+                    "selection": selection,
+                    "message": str(exc),
+                })
+                logger.warning("RAMAL PENDIENTE %s (%s): %s", selection, type_name, exc)
+                continue
+
+            route_key = normalize_text(route["id"])
+            if route_key not in seen:
+                resolved.append(route)
+                seen.add(route_key)
+    return resolved, unresolved
+
+
 def run(
     config_path: Path = DEFAULT_CONFIG,
     *,
+    branches_path: Path = DEFAULT_BRANCHES,
     today: dt.date | None = None,
     dry_run: bool = False,
     only_routes: set[str] | None = None,
@@ -590,15 +1015,20 @@ def run(
         "sofse": SofseProvider(http),
         "cuando_subo": CuandoSuboProvider(http),
     }
+    routes, unresolved = resolve_requested_routes(
+        config, branches_path, providers, today,
+    )
     summary: dict[str, Any] = {
         "updated": 0,
         "unchanged": 0,
         "would_update": 0,
         "preserved": 0,
+        "unresolved": len(unresolved),
         "targets": [],
+        "unresolved_routes": unresolved,
     }
 
-    for route in config["routes"]:
+    for route in routes:
         if only_routes and route["id"] not in only_routes:
             continue
         if route.get("provider") not in providers:
@@ -647,6 +1077,7 @@ def run(
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
+    parser.add_argument("--branches", type=Path, default=DEFAULT_BRANCHES)
     parser.add_argument("--today", type=dt.date.fromisoformat)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--route", action="append", dest="routes")
@@ -664,6 +1095,7 @@ def main() -> int:
     try:
         summary = run(
             args.config,
+            branches_path=args.branches,
             today=args.today,
             dry_run=args.dry_run,
             only_routes=set(args.routes) if args.routes else None,

@@ -11,6 +11,11 @@ on:
         required: false
         default: false
         type: boolean
+      force_catalog:
+        description: Forzar el refresco completo de Lista de ramales
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -22,7 +27,7 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     env:
       TZ: America/Argentina/Buenos_Aires
 
@@ -45,7 +50,18 @@ jobs:
       - name: Probar conector SOFSE para la web
         run: node --test scripts/sofse_api.test.mjs
 
-      - name: Consultar APIs y actualizar XLSX seguros
+      - name: Refrescar catálogo de ramales si venció
+        shell: bash
+        env:
+          FORCE_CATALOG: ${{ inputs.force_catalog || 'false' }}
+        run: |
+          if [ "$FORCE_CATALOG" = "true" ]; then
+            python scripts/update_route_catalog.py --force
+          else
+            python scripts/update_route_catalog.py
+          fi
+
+      - name: Leer ramales.xlsx y actualizar cronogramas seguros
         run: python scripts/update_schedules.py
 
       - name: Decidir si debe reconstruirse SQLite
@@ -70,7 +86,7 @@ jobs:
         run: |
           git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add Horarios horarios.db
+          git add ramales.xlsx Horarios horarios.db
           if git diff --staged --quiet; then
             echo "No hubo cambios publicables." >> "$GITHUB_STEP_SUMMARY"
             exit 0
