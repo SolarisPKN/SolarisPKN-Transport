@@ -1,8 +1,11 @@
 # 🚆 SolarisPKN-Transport
 
-> Un pipeline resistente de cronogramas para trenes y colectivos argentinos: entran datos de las aplicaciones oficiales y salen XLSX auditables y una base SQLite lista para consultar.
+> Un pipeline resistente de cronogramas para trenes y colectivos argentinos: entran datos publicados por proveedores y salen XLSX auditables y una base SQLite lista para consultar.
 
 [🇺🇸 English](README.md) | 🇦🇷 **Español**
+
+> [!IMPORTANT]
+> Este es un proyecto independiente y no oficial de interoperabilidad. No está afiliado, patrocinado ni respaldado por Trenes Argentinos Operaciones, SOFSE, Nación Servicios, SUBE ni ningún operador de transporte. Los nombres de terceros se usan únicamente para identificar fuentes fácticas. Leé el [aviso legal, de atribución y de datos](LEGAL.es.md) antes de desplegar o redistribuir los datos generados.
 
 ---
 
@@ -323,7 +326,7 @@ Nunca subas secretos, credenciales privadas de API ni datos de usuarios.
 
 ## Licencia
 
-SolarisPKN-Transport se distribuye bajo la [GNU General Public License v3.0](LICENSE).
+El código fuente original de SolarisPKN-Transport se distribuye bajo la [GNU General Public License v3.0](LICENSE). Esa licencia no pretende cubrir marcas, aplicaciones móviles, servicios de proveedores ni datos de cronogramas pertenecientes a terceros. Consultá el [aviso legal, de atribución y de datos](LEGAL.es.md).
 
 ---
 

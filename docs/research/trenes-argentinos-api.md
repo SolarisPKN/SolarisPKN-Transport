@@ -2,11 +2,13 @@
 
 ## Artefacto analizado
 
-- Archivo local: `research/apk/trenes-argentinos/Trenes+Argentinos_7.70.1_APKPure.apk`
+- Artefacto temporal aportado por el usuario para investigación local de compatibilidad; no se evaluó su canal de obtención y no se distribuye con el proyecto.
 - Versión visible: `7.70.1`
 - SHA-256: `EF33FAFC21EBC074CB2EED49EB18B97229517CEFFA8559EED9D9767E59F6FD7C`
 
-El APK no se versiona. El hash identifica el binario exacto analizado.
+El APK nunca fue agregado a Git y fue eliminado del workspace después del análisis. El historial público tampoco contiene el paquete, archivos decompilados, recursos gráficos ni código fuente de la aplicación. El hash se conserva únicamente como registro reproducible del artefacto observado.
+
+La investigación se limitó a interoperabilidad con datos públicos de horarios. No incluyó cuentas de usuarios, datos personales, transacciones, explotación de vulnerabilidades ni copia de código o recursos de la aplicación. Los conectores de este repositorio son implementaciones propias basadas en comportamiento observable.
 
 ## Resultado
 
@@ -45,6 +47,8 @@ SOFSE puede publicar un viaje que sale antes de medianoche y llega después. Int
 ## Riesgos operativos
 
 - La interfaz pertenece al servicio oficial, pero no está documentada como API pública estable.
+- Que un endpoint sea técnicamente accesible no constituye por sí solo una autorización de uso. Quien despliegue el conector debe verificar que cuenta con autorización suficiente y respetar los términos vigentes del proveedor.
 - El mecanismo de autorización, los identificadores o el cuerpo de respuesta podrían cambiar.
 - Una autenticación fallida, un JSON incompleto o una cobertura insuficiente nunca reemplazan el último XLSX válido.
 - La posición en vivo es una consulta distinta; no se mezcla con el snapshot diario de horarios.
+- El proyecto es independiente y no está respaldado ni afiliado a SOFSE o Trenes Argentinos Operaciones.

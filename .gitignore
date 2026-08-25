@@ -3,6 +3,23 @@ __pycache__/
 .pytest_cache/
 .solaris-xlsx-*/
 
-# Los paquetes móviles se usan para investigación local y no se versionan.
+# Paquetes móviles y resultados de ingeniería de compatibilidad de terceros.
+# No deben copiarse, redistribuirse ni versionarse en este repositorio.
+*.apk
+*.xapk
+*.apks
+*.aab
 research/apk/
 research/xapk/
+research/decompiled/
+research/jadx*/
+research/apktool*/
+
+# Credenciales y almacenes de firma.
+*.keystore
+*.jks
+*.p12
+*.pfx
+.env
+.env.*
+!.env.example

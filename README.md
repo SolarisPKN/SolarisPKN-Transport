@@ -1,8 +1,11 @@
 # 🚆 SolarisPKN-Transport
 
-> A resilient transport timetable pipeline for Argentine trains and buses: official app data in, auditable XLSX and query-ready SQLite out.
+> A resilient transport timetable pipeline for Argentine trains and buses: provider timetable data in, auditable XLSX and query-ready SQLite out.
 
 🇺🇸 **English** | [🇦🇷 Español](README.es.md)
+
+> [!IMPORTANT]
+> This is an independent, unofficial interoperability project. It is not affiliated with, sponsored by, or endorsed by Trenes Argentinos Operaciones, SOFSE, Nación Servicios, SUBE, or any transport operator. Third-party names are used only to identify factual data sources. Read the [legal, attribution, and data notice](LEGAL.md) before deploying or redistributing generated data.
 
 ---
 
@@ -323,7 +326,7 @@ Never commit secrets, private API credentials, or user data.
 
 ## License
 
-SolarisPKN-Transport is released under the [GNU General Public License v3.0](LICENSE).
+The original SolarisPKN-Transport source code is released under the [GNU General Public License v3.0](LICENSE). That license does not claim ownership of third-party trademarks, mobile applications, provider services, or upstream timetable data. See [Legal, attribution, and data notice](LEGAL.md).
 
 ---
 
