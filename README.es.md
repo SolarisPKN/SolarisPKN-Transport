@@ -35,7 +35,7 @@ Esto es deliberadamente más que un scraper. Es un pipeline conservador de datos
 - **Persistencia atómica.** Los XLSX y la base candidatos se preparan y validan antes de reemplazar la copia confiable.
 - **Protección del dato manual.** Una actualización fallida o parcial deja el archivo anterior byte por byte intacto.
 - **Automatización diaria.** GitHub Actions prueba los conectores, refresca cronogramas, reconstruye SQLite sólo cuando corresponde y evita commits vacíos.
-- **Procedencia visible.** La celda `A24` de cada cronograma indica si el método de actualización fue `API` o `Manual`.
+- **Procedencia visible.** La celda `A24` de cada cronograma indica si el método fue `API`, `Manual` o `Estimado`. Este último conserva salidas publicadas y marca como aproximados los pasos intermedios reconstruidos.
 - **Documentación bilingüe.** La documentación en inglés y español conserva el estilo del ecosistema SolarisPKN.
 
 ## Recorridos actuales
@@ -50,7 +50,7 @@ Los perfiles iniciales revisados cubren los ramales que dieron origen al proyect
 | Colectivo | 322 | Marcos Paz ↔ Luján | Las paradas de referencia revisadas incluyen Las Heras, Villars y Plomer. |
 | Colectivo | 322 | Marcos Paz ↔ Cañuelas | Se procesan ambos sentidos publicados. |
 
-El servicio 136 por Villars/Plomer todavía no se automatiza como un ramal separado porque Cuándo SUBO no lo publica actualmente como recorrido independiente. Si existe una planilla mantenida a mano, queda intacta cuando la API no permite identificar un equivalente exacto.
+El servicio 136 por Villars/Plomer se conserva en variantes E, F, G, H e I. Las salidas y duraciones provienen de cronogramas públicos; cuando la fuente secundaria no publica la matriz completa, las horas intermedias quedan identificadas como `Estimado`. No se presentan como GPS ni como tiempos observados.
 
 Estos cinco perfiles funcionan como overrides seguros en `config/schedule_sources.json`: fijan identificadores revisados y paradas de referencia. Cualquier selección adicional se descubre desde el catálogo incluido en `ramales.xlsx`.
 
@@ -134,7 +134,11 @@ El conector ferroviario usa endpoints REST de SOFSE descubiertos desde la aplica
 
 ### Cuándo SUBO / OneBusAway
 
-El conector de colectivos usa la API REST expuesta por la aplicación Cuándo SUBO. Obtiene agencias, variantes de recorridos, paradas y horarios por parada. Los perfiles revisados conservan sus paradas exactas.
+El conector de colectivos intenta primero la API REST expuesta por Cuándo SUBO. Obtiene agencias, variantes de recorridos, paradas y horarios por parada. Los perfiles revisados conservan sus paradas exactas.
+
+El perfil rápido del 136 asocia cada hito ferroviario con una parada del recorrido actual usando el orden publicado, las relaciones de «paradas cercanas» de Cuándo SUBO y coordenadas de estaciones SOFSE/Georef. `config/schedule_sources.json` conserva el ID, nombre publicado, método de asociación y distancia cuando existe una coordenada comparable. No se interpolan horarios. En el sentido Navarro → Primera Junta, el proveedor salta General Hornos y Zamudio entre sus 160 paradas publicadas; esas dos columnas permanecen como `null`, con la parada del sentido contrario guardada sólo como referencia y nunca como horario de vuelta.
+
+Si el JSON de `schedule-for-stop` rechaza temporalmente el cliente público, el actualizador puede releer la vista web oficial de cada `tripId` que ya existe en el XLSX. Ese fallback refresca horas agrupadas tal como las publica el proveedor, pero no puede descubrir altas o bajas de formaciones. Cualquier viaje ausente, redirección inválida o cabecera incompleta hace que se preserve el libro anterior.
 
 La instancia desplegada por Cuándo SUBO no expone una respuesta completa de `schedule-for-route`; por eso, para un colectivo nuevo se conservan ambas cabeceras y como máximo doce paradas publicadas distribuidas uniformemente. Esto limita el tráfico de red sin perder una cobertura útil del recorrido.
 
@@ -150,7 +154,7 @@ Los archivos generados preservan la convención existente en `Horarios/`:
 - las estaciones o paradas comienzan en la columna `C`;
 - cada fila siguiente representa una formación o servicio;
 - cada celda contiene su hora en esa estación o parada;
-- `A24` guarda el método de procedencia: `API` o `Manual`.
+- `A24` guarda el método de procedencia: `API`, `Manual` o `Estimado`.
 
 El mismo parser valida los candidatos generados y los importa en SQLite. Esto evita que el productor y el consumidor del formato se descoordinen silenciosamente.
 
@@ -277,6 +281,23 @@ Para conocer la justificación completa y la investigación reproducible de endp
 - [`docs/adr/0001-cronogramas-diarios-con-fallback.md`](docs/adr/0001-cronogramas-diarios-con-fallback.md)
 - [`docs/research/trenes-argentinos-api.md`](docs/research/trenes-argentinos-api.md)
 - [`docs/research/cuando-subo-api.md`](docs/research/cuando-subo-api.md)
+
+## Contrato reusable de posiciones vivas
+
+El seguimiento vivo está documentado como una capa separada y de vida corta. Estos recursos son
+independientes del proveedor y de la nube: no despliegan infraestructura ni contienen credenciales,
+identificadores de cuenta, buckets, dominios o paquetes móviles reales.
+
+- [`ADR 0002: posiciones vivas separadas de cronogramas`](docs/adr/0002-posiciones-vivas-separadas-de-cronogramas.md)
+- [`Guía reusable de integración en tiempo real`](docs/guides/integrar-posiciones-en-tiempo-real.md)
+- [`JSON Schema canónico`](docs/contracts/live-positions.schema.json)
+- [`Fixtures sanitizados`](tests/fixtures/live-positions/)
+- [`Ejemplos mínimos de agregador y cliente web`](examples/live-positions/README.md)
+- [`Pruebas offline del contrato`](tests/live-positions-contract.test.mjs)
+
+El contrato distingue coordenadas informadas y estimadas, unidades activas sin posición, datos frescos y
+vencidos, fallos parciales y totales de proveedores, respuestas HTTP 200 semánticamente inválidas y el
+fallback explícito a sólo cronogramas. Un horario local nunca se presenta como posición viva.
 
 ## Tecnologías
 

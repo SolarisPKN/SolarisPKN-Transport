@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "id": "136-villars",
+  "label": "Línea 136 · corredor Villars",
+  "observedAt": "2026-08-31",
+  "positionPolicy": "schedule-estimate-only",
+  "sources": {
+    "geometry": "https://router.project-osrm.org/",
+    "geometryData": "OpenStreetMap contributors",
+    "timetables": "https://moovitapp.com/index/es-419/transporte_p%C3%BAblico-line-136-Buenos_Aires-1602-853157-115624289-10",
+    "operator": "Sargento Cabral SATA"
+  },
+  "operationalNotes": {
+    "shape": "T",
+    "userReportedDwellMinutes": 10,
+    "dwellVerification": "pending",
+    "description": "El corredor puede visitar Zamudio y Villars más de una vez dentro del mismo bloque. Las esperas locales se conservan como conocimiento operativo, pero no alteran los horarios publicados hasta contar con una planilla verificable."
+  },
+  "points": {
+    "marcosPaz": { "name": "Estación Marcos Paz", "coordinates": [-58.836593, -34.784525] },
+    "zamudio": { "name": "Zamudio · RP 40 y RP 6", "coordinates": [-58.89421, -34.856828] },
+    "villars": { "name": "Estación Villars", "coordinates": [-58.938715, -34.82856] },
+    "plomer": { "name": "Estación Plomer", "coordinates": [-59.029452, -34.794475] },
+    "hornos": { "name": "General Hornos", "coordinates": [-58.921944, -34.893056] },
+    "lasHeras": { "name": "Terminal Las Heras", "coordinates": [-58.947225, -34.927282] }
+  },
+  "segments": {
+    "marcosPazZamudio": {
+      "from": "marcosPaz",
+      "to": "zamudio",
+      "distanceMeters": 11439,
+      "polyline6": "lpajaAzdbfoBlBpAnCjB~\\}z@|Wkp@~CwHv`Atp@xaAdq@lHhFjMpMrSlXlDnGxGxLlJhTfIxSrOpe@pOj`@`g@dtAzK`ZhI|PhL|RrQtWhSbU`JhIhJxHb\\zTtf@x\\xwCpqBv^lRl]fWts@hg@bS`N~f@z\\dq@xc@bIhFb~AreA~n@db@`OvJxc@jZzh@~\\ne@p\\dz@dl@TP~d@|Zr]rTvHzE~I~Gl]`ThOpJlg@lZzQbL~aHhwEtS`NdvKxmHrTtNneDt`ChZvSpIrFhwDpcCz~IncGhQzLzmQxwLdShM~fFfkDbeHjzEx\\rUdTpNpeAds@l{@vk@xHdEzHnE`HvD|FrDfHtDfHvCjOzExJtCzIpBnGdA|Fn@hFV|H^rFJxKHlIUnLg@nDk@jDe@pDgAxDuA~DoAbEuBzCeBjFiDnHeGbH_I`i@_k@jM{MdGgFtIsEjD}@dDq@tBU`CWbEDfDFxCLfD`@lEjAlDhBdC`C~AhCfAdCt@dC\\zBJpCQ|Bc@jDqAdJkE~K}AlE}CvIeF~NqD~K_EvJsGbMwG`LykA`_BsS|X}aAvpAeZd_@g`@ta@cLfLyKbMuMxOwKtNs_@lj@y@xB_@tBMjCLvC|@zD~@fBlAtAp@d@z@d@|@XfAPpADrAIbJkAfHaIdH}HbSyNtDiBjC}@jCe@dCMfBEtCTpBZdCn@pBl@zBn@pAXvAXvHfAtGb@nFMpE[jEq@`D}@jEkBnE_CfbAkq@dAs@|FwD"
+    },
+    "zamudioVillars": {
+      "from": "zamudio",
+      "to": "villars",
+      "distanceMeters": 8363,
+      "polyline6": "hvnnaAhvrioB}FvDeAr@gbAjq@oE~BkEjBaD|@kEp@qEZoFLuGc@mJsDeB{@{AcAgA_AkAqAeAuAiAkBi@eAe@iBa@wCQqCRaE\\qC`@sCvEuQbEqLPiBHiBEoAQmAQs@Ug@k@_AcAs@m@Wu@WwAWqAAgAFsAXuBz@cLfLyKbMuMxOwKtNs_@lj@wRrWgXh^gObSgiBfaC{fDvfEalHnbJusBniC_bC`|Cob@nj@yhEb`GapExnG_a@th@_b@|d@i]`]{VjTud@|]cg@x[yZpQohDzcBiQ~Ig~G|eDayGdgDcJlEs}@nd@uCxA_p@fZ_DtC_AfBQlAEpAJfAX~@l@p@|@\\fAGvdA_g@hHxQlUlm@bMbXjSvXtmAlyAzOhRrQxT`JpKxn@`t@vc@zh@hL`Nl_@tc@pMlOpc@pi@|RdVtIbInIjHhKlGzLzF`GpBzCbAlJ|BxFbAtEZxJBfKiAdOmDda@mO`}@w\\j|@k\\~{@g\\b{@w^nw@_Z"
+    },
+    "villarsPlomer": {
+      "from": "villars",
+      "to": "plomer",
+      "distanceMeters": 16136,
+      "polyline6": "pnwlaAdpiloBow@~Yc{@v^_|@f\\k|@j\\a}@v\\ea@lOeOlDgKhAyJCuE[yFcAmJ}B{CcAaGqB{L{FiKmGoIkHuIcI}ReVqc@qi@qMmOm_@uc@iLaNwc@{h@yn@at@aJqKsQyT{OiRumAmyAkSwXcMcXmUmm@iHyQpg@_W~WyMvAyBb@sBQ_Cs@qAoAg@gA?{BRcJlEs}@nd@uCxA_p@fZc^hQ_j[puO}g@~WgRlKkObK}SfOqO`NeCvBuRvQwOnP_RzSmc@~k@syDbnFyhAn}AaEpF_uIxtLsdA`xAchE``GiN`S}f@|q@_vBxvC_lBzjC_BxBq_A~pAiH`KwiFljHigI|aLsp@j~@g`Fz~G}mDl{Ecg@jt@uo@|}@_BjFUlBAxALnAPv@Zp@TT\\PZFf@@bv@mgArGjIpD`FfgHfkKnOzSzQdSnSdPlRhLxUtKln@pUbMvEfOfHzNnItR`NlRvOpRhRd_A~jAftBzeCnkE~kFps@|{@taDlhE|oCnrDvuDxaF|uCjzDpeBbtBrs@lz@zP`QnIbHrIdF|ObIxNhFbNfEfs@rRpVjIxJpDxL|EtHhD`h@dZnwAl|@|v@he@nm@v^"
+    },
+    "zamudioLasHeras": {
+      "from": "zamudio",
+      "to": "lasHeras",
+      "distanceMeters": 10521,
+      "via": ["hornos"],
+      "polyline6": "hvnnaAhvrioBvDeCx@k@vMeIzOaK|NyFjLiCdLsAxE]fKSvHB`Ib@rGz@`JzBxGdBxJlDbKbFbLpGhNhIxfBlkAlkGdgEdcMnoI`J`GbjFpoDdjDb_CdiJnlGrVbTfMpKnKhKbG~H|HlK|HjMpNbZlHbRbGnQ|_AdlDzEwGdi@ot@rj@zn@hi@pm@vl@hq@vl@fq@jj@rn@nVzX~R~Tbj@jn@dk@po@hj@rn@gXf`@cX~_@ej@zx@fKrLuDjFdqAtyAl}CroDtu@`{@h{D|pEtt@|z@|AhBjeI~kJvd@fi@nC`DbcBroBvc@hh@hf@fk@dRpTfJjKrF}HjM}QtQqWne@oq@b@o@vIaM|n@}}@rHyKtI_Mr_@{i@|lAcfBn`@mj@tEgHnaAhq@haApp@`aAlp@zaAbo@zaAdq@jaA|p@bbAjq@b`A|o@`b@jYb]rUtFvDpVtPhCfBdJeV"
+    }
+  },
+  "network": {
+    "id": "136-villars-network",
+    "name": "Línea 136 · Marcos Paz–Villars/Plomer–Las Heras",
+    "segments": ["marcosPazZamudio", "zamudioVillars", "villarsPlomer", "zamudioLasHeras"]
+  },
+  "patterns": [
+    { "id": "136-e-villars", "label": "136 E · Marcos Paz → Villars", "from": "marcosPaz", "to": "villars", "path": [["marcosPazZamudio", false], ["zamudioVillars", false]], "weekdayDepartures": [310, 525, 635, 740, 870, 1260], "weekendDepartures": [360, 635, 885, 1055, 1285], "durationMinutes": 37 },
+    { "id": "136-e-marcos-paz", "label": "136 E · Villars → Marcos Paz", "from": "villars", "to": "marcosPaz", "path": [["zamudioVillars", true], ["marcosPazZamudio", true]], "weekdayDepartures": [340, 430, 565, 670, 775, 1080, 1210], "weekendDepartures": [390, 600, 980, 1315], "durationMinutes": 36 },
+    { "id": "136-h-las-heras", "label": "136 H · Villars → Las Heras", "from": "villars", "to": "lasHeras", "path": [["zamudioVillars", true], ["zamudioLasHeras", false]], "weekdayDepartures": [670, 910, 985, 1145, 1295], "weekendDepartures": [915, 1085], "durationMinutes": 31 },
+    { "id": "136-h-villars", "label": "136 H · Las Heras → Villars", "from": "lasHeras", "to": "villars", "path": [["zamudioLasHeras", true], ["zamudioVillars", false]], "weekdayDepartures": [410, 530, 620, 940, 1045, 1110, 1180], "weekendDepartures": [570, 950], "durationMinutes": 31 },
+    { "id": "136-f-plomer", "label": "136 F · Marcos Paz → Plomer", "from": "marcosPaz", "to": "plomer", "path": [["marcosPazZamudio", false], ["zamudioVillars", false], ["villarsPlomer", false]], "weekdayDepartures": [290, 405, 970, 1170], "weekendDepartures": [445], "durationMinutes": 67 },
+    { "id": "136-f-marcos-paz", "label": "136 F · Plomer → Marcos Paz", "from": "plomer", "to": "marcosPaz", "path": [["villarsPlomer", true], ["zamudioVillars", true], ["marcosPazZamudio", true]], "weekdayDepartures": [1220, 1375], "weekendDepartures": [755, 1190], "durationMinutes": 56 },
+    { "id": "136-i-las-heras", "label": "136 I · Plomer → Las Heras", "from": "plomer", "to": "lasHeras", "path": [["villarsPlomer", true], ["zamudioVillars", true], ["zamudioLasHeras", false]], "weekdayDepartures": [345, 465, 1030], "weekendDepartures": [500], "durationMinutes": 57 },
+    { "id": "136-i-plomer", "label": "136 I · Las Heras → Plomer", "from": "lasHeras", "to": "plomer", "path": [["zamudioLasHeras", true], ["zamudioVillars", false], ["villarsPlomer", false]], "weekdayDepartures": [735, 1330], "weekendDepartures": [700, 1135], "durationMinutes": 51 },
+    { "id": "136-g-marcos-paz-las-heras", "label": "136 G · Plomer → Las Heras → Marcos Paz", "from": "plomer", "to": "marcosPaz", "path": [["villarsPlomer", true], ["zamudioVillars", true], ["zamudioLasHeras", false], ["zamudioLasHeras", true], ["marcosPazZamudio", true]], "weekdayDepartures": [790], "weekendDepartures": [], "durationMinutes": 95 }
+  ]
+}

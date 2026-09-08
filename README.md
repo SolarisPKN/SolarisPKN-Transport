@@ -35,7 +35,7 @@ This is deliberately more than a scraper. It is a conservative data pipeline: in
 - **Atomic persistence.** Candidate XLSX and database files are prepared and validated before replacing the trusted copy.
 - **Manual-data protection.** A failed or partial update leaves the previous file byte-for-byte intact.
 - **Daily automation.** GitHub Actions tests the connectors, refreshes schedules, rebuilds SQLite only when needed, and avoids empty commits.
-- **Traceable provenance.** Cell `A24` in every timetable says whether its update method is `API` or `Manual`.
+- **Traceable provenance.** Cell `A24` in every timetable identifies `API`, `Manual`, or `Estimado` data. The last value keeps published departures while marking reconstructed intermediate stop times as approximate.
 - **Bilingual documentation.** English and Spanish documentation follow the rest of the SolarisPKN ecosystem.
 
 ## Current routes
@@ -50,7 +50,7 @@ The initial curated profiles cover the routes that motivated the project:
 | Bus | 322 | Marcos Paz ↔ Luján | Curated reference stops include Las Heras, Villars, and Plomer. |
 | Bus | 322 | Marcos Paz ↔ Cañuelas | Both published directions are processed. |
 
-The 136 service through Villars/Plomer is not automated as a separate branch because Cuándo SUBO does not currently publish it as an independent route. A manually maintained workbook is kept untouched when the API cannot identify an exact equivalent.
+The 136 service through Villars/Plomer is represented as variants E, F, G, H, and I. Departures and durations come from public timetables; when the secondary source does not publish the full stop matrix, intermediate times are explicitly tagged as `Estimado`. They are never presented as GPS or observed times.
 
 These five profiles are safe overrides in `config/schedule_sources.json`. They define reviewed identifiers and reference stops. Any additional selection is discovered from the catalog in `ramales.xlsx`.
 
@@ -134,7 +134,11 @@ The train connector uses SOFSE REST endpoints discovered from the official Trene
 
 ### Cuándo SUBO / OneBusAway
 
-The bus connector uses the REST API exposed by the Cuándo SUBO application. It obtains agencies, route variants, stops, and stop schedules. Curated profiles retain their exact reviewed stops.
+The bus connector first tries the REST API exposed by Cuándo SUBO. It obtains agencies, route variants, stops, and stop schedules. Curated profiles retain their exact reviewed stops.
+
+The 136 fast-service profile associates every railway landmark with a stop on the current route by combining published route order, Cuándo SUBO's own nearby-stop relationships, and SOFSE/Georef station coordinates. `config/schedule_sources.json` retains the ID, provider name, match method, and distance whenever comparable coordinates are available. Times are never interpolated. In the Navarro → Primera Junta direction, the provider skips General Hornos and Zamudio in its published 160-stop list; those two columns therefore remain `null`, while the opposite-direction stop is retained only as a reference and never reused as a return timetable.
+
+If the public client is temporarily rejected by the `schedule-for-stop` JSON endpoint, the updater can read the official web view for each `tripId` already present in the XLSX. This fallback refreshes grouped times exactly as published, but it cannot discover added or removed trips. A missing trip, invalid redirect, or incomplete endpoint causes the previous workbook to be preserved.
 
 The deployed Cuándo SUBO instance does not expose a complete `schedule-for-route` response, so a newly selected bus route keeps both endpoints and at most twelve evenly distributed published stops. This bounds network traffic while retaining useful route coverage.
 
@@ -150,7 +154,7 @@ Generated files preserve the existing `Horarios/` convention:
 - stations or stops begin at column `C`;
 - each subsequent row represents one train or bus service;
 - each cell contains the time at that station/stop;
-- `A24` stores the provenance method: `API` or `Manual`.
+- `A24` stores the provenance method: `API`, `Manual`, or `Estimado`.
 
 The same parser validates generated candidates and imports them into SQLite, preventing the producer and consumer from silently drifting apart.
 
@@ -277,6 +281,23 @@ For the complete rationale and reproducible endpoint research, read:
 - [`docs/adr/0001-cronogramas-diarios-con-fallback.md`](docs/adr/0001-cronogramas-diarios-con-fallback.md)
 - [`docs/research/trenes-argentinos-api.md`](docs/research/trenes-argentinos-api.md)
 - [`docs/research/cuando-subo-api.md`](docs/research/cuando-subo-api.md)
+
+## Reusable live-position contract
+
+Live tracking is documented as a separate, short-lived layer. These resources are provider- and
+cloud-neutral; they do not deploy infrastructure or contain real credentials, account identifiers,
+buckets, domains, or mobile packages:
+
+- [`ADR 0002: live positions separated from timetables`](docs/adr/0002-posiciones-vivas-separadas-de-cronogramas.md)
+- [`Reusable real-time integration guide`](docs/guides/integrar-posiciones-en-tiempo-real.md)
+- [`Canonical JSON Schema`](docs/contracts/live-positions.schema.json)
+- [`Sanitized fixtures`](tests/fixtures/live-positions/)
+- [`Minimal aggregator and web-client examples`](examples/live-positions/README.md)
+- [`Offline contract tests`](tests/live-positions-contract.test.mjs)
+
+The contract distinguishes provider-reported and estimated coordinates, active vehicles without a
+position, fresh and stale data, partial and total provider failure, semantically invalid HTTP 200
+responses, and explicit timetable-only fallback. A local timetable is never promoted to a live position.
 
 ## Technology stack
 

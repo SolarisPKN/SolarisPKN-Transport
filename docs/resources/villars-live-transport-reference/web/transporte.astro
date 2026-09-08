@@ -1,0 +1,320 @@
+---
+import Layout from '../layouts/Layout.astro';
+import transportData from '../data/transport-schedules.json';
+import { directionsFor, formatMinutes, nextServiceForRoute, normalizeStationName, scheduleServiceKey, stationScheduleGrid, weekdayNames } from '../utils/transport-services.js';
+
+const transportRoutes = transportData.routes
+  .filter((route) => route.schedules.length > 0)
+  .sort((left, right) => (left.type === right.type ? (left.lineLabel || left.branch).localeCompare(right.lineLabel || right.branch, 'es') : left.type === 'train' ? -1 : 1));
+const scheduleDays = [
+  { key: 'weekday', label: 'Lunes a viernes' },
+  { key: 'saturday', label: 'Sábados' },
+  { key: 'sunday', label: 'Domingos' },
+];
+type GridStation = {
+  name: string;
+  normalizedName: string;
+  outsidePublishedService?: boolean;
+  stops: Array<{ minutes: number } | null>;
+};
+const initialRoute = transportRoutes.find((route) => route.lineKey === 'belgrano-sur') || transportRoutes[0];
+const initialReference = normalizeStationName(initialRoute?.referenceStation || 'villars');
+const initialNext = initialRoute ? nextServiceForRoute(initialRoute, transportData.timezone, new Date(), initialReference) : null;
+const initialDirections = initialRoute ? directionsFor(initialRoute) : [];
+const initialDirection = initialDirections[0]?.key;
+const initialScheduleGrids = initialRoute
+  ? scheduleDays.map((day) => {
+      const grid = stationScheduleGrid(initialRoute, day.key, initialDirection);
+      return {
+        ...day,
+        grid,
+      };
+    })
+  : [];
+const updatedAt = transportData.source.updatedAt
+  ? new Date(transportData.source.updatedAt).toLocaleString('es-AR', { timeZone: transportData.timezone, dateStyle: 'long', timeStyle: 'short' })
+  : 'sin fecha informada';
+---
+
+<Layout
+  title="Transporte en Villars"
+  description="Horarios programados de colectivos y trenes con parada en Villars, grillas por estación y mapa de posiciones informadas."
+  canonical="/transporte/"
+  schema="transport"
+  breadcrumbs={[{ name: 'Inicio', url: '/' }, { name: 'Transporte', url: '/transporte/' }]}
+>
+  <section class="transport-page" data-transport-app>
+    <header class="transport-hero">
+      <p class="eyebrow">Horarios versionados · posiciones cada minuto</p>
+      <h1>Transporte en Villars</h1>
+      <p>Consultá trenes y colectivos por línea y sentido. Los servicios suspendidos se distinguen de los horarios publicados, y el mapa funciona con cartografía alojada en este mismo sitio.</p>
+    </header>
+    {transportRoutes.length === 0 ? (
+      <div class="transport-panel"><h2>Datos temporalmente no disponibles</h2><p>El snapshot actual no contiene recorridos publicados.</p></div>
+    ) : (
+      <div class="transport-panel">
+        <div class="service-picker">
+          <div>
+            <p class="eyebrow">Elegí el servicio</p>
+            <p>Al cambiar de servicio se actualizan juntas las tres grillas.</p>
+          </div>
+          <div class="service-selectors">
+            <label>Tipo
+              <select data-mode-select aria-controls="transport-line transport-schedule-panel">
+                <option value="train">Trenes</option>
+                <option value="bus">Colectivos</option>
+              </select>
+            </label>
+            <label>Línea o ramal
+              <select id="transport-line" data-route-select aria-controls="transport-schedule-panel">
+                {transportRoutes.filter((route) => route.type === initialRoute?.type).map((route) => <option value={route.id} selected={route.id === initialRoute?.id}>{route.lineLabel || route.branch || route.name}</option>)}
+              </select>
+            </label>
+          </div>
+        </div>
+        <div class="next-service" aria-live="polite">
+          <span class="next-label">Próximo servicio en <span data-reference-station>{initialRoute?.referenceStation || 'la estación de referencia'}</span></span>
+          <strong data-next-service>{initialNext ? weekdayNames[initialNext.weekday] + ' ' + initialNext.date + ' · ' + formatMinutes(initialNext.minutes).value : 'Sin servicio'}</strong>
+          <span data-next-detail>{initialNext ? 'Hacia ' + initialNext.destination : 'No se encontraron salidas en los próximos siete días.'}</span>
+        </div>
+        <div class="schedule-heading">
+          <div><p class="eyebrow" data-route-type>{initialRoute?.type === 'bus' ? 'Colectivo' : 'Tren'}</p><h2 data-schedule-title>Todos los horarios de {initialRoute?.branch || initialRoute?.name}</h2></div>
+          <p data-validity>{initialRoute?.validFrom ? 'Vigencia informada desde ' + new Date(initialRoute.validFrom + 'T12:00:00').toLocaleDateString('es-AR') : 'Sin vigencia informada'}</p>
+        </div>
+        <p class="service-notice" data-service-notice hidden={!initialRoute?.serviceNotice}>{initialRoute?.serviceNotice}</p>
+        <div class="direction-picker">
+          <label for="transport-direction">Sentido del recorrido</label>
+          <div class="direction-select-wrap">
+            <select id="transport-direction" data-direction-select aria-controls="transport-schedule-panel">
+              {initialDirections.map(({ key, label }) => <option value={key}>{label}</option>)}
+            </select>
+            <span aria-hidden="true">↓</span>
+          </div>
+          <p><span class="desktop-grid-hint">Cada fila es una formación y cada columna una estación.</span><span class="mobile-grid-hint">Usá Anterior y Siguiente para recorrer las formaciones; las estaciones aparecen en filas.</span> La terminal real aparece debajo del número.</p>
+        </div>
+        <div class="schedule-legend" aria-label="Referencia de próximos servicios">
+          <span><i class="next" aria-hidden="true"></i> Próxima formación en la estación de referencia</span>
+          <span><i class="following" aria-hidden="true"></i> Formación siguiente</span>
+        </div>
+        <div class="operational-legend" aria-label="Estados operativos de las formaciones">
+          <span><i class="scheduled" aria-hidden="true"></i> Programado</span>
+          <span><i class="confirmed" aria-hidden="true"></i> Confirmado por SOFSE</span>
+          <span><i class="active" aria-hidden="true"></i> En curso</span>
+          <span><i class="delayed" aria-hidden="true"></i> Demorado</span>
+          <span><i class="estimated" aria-hidden="true"></i> En curso estimado</span>
+          <span><i class="cancelled" aria-hidden="true"></i> Cancelado</span>
+        </div>
+        <div id="transport-schedule-panel" class="schedule-sections" data-schedule-sections role="tabpanel" tabindex="0" aria-live="polite">
+          {initialScheduleGrids.map(({ key, label, grid }) => (
+            <section class="schedule-block" data-schedule-day={key}>
+              <div class="schedule-block-heading"><h3>{label}</h3><span>{grid.services.length ? grid.services.length + ' formaciones' : 'Sin servicios'}</span></div>
+              <div class="schedule-table-scroll">
+                <table class="schedule-table">
+                  <caption>{initialRoute?.branch || initialRoute?.name} · {label} · Hacia {initialDirection}</caption>
+                  <thead><tr><th scope="col" class="formation-column">Formación</th>{grid.stations.map((station: GridStation) => <th scope="col" class:list={{ 'villars-column': station.normalizedName === 'villars', 'outside-service-column': station.outsidePublishedService }}><span>{station.name}</span>{station.normalizedName === 'villars' && <small>Estás acá</small>}{station.outsidePublishedService && <small>Sin servicio publicado</small>}</th>)}</tr></thead>
+                  <tbody>
+                    {grid.services.map((service, serviceIndex) => (
+                      <tr data-service-key={scheduleServiceKey(key, initialDirection, service)}>
+                        <th scope="row" class="formation-column"><span>{service.name}</span><small>hasta {service.destination}</small></th>
+                        {grid.stations.map((station: GridStation) => station.stops[serviceIndex] ? (
+                          <td class:list={{ 'villars-column': station.normalizedName === 'villars' }}><span>{formatMinutes(station.stops[serviceIndex].minutes).value}</span>{formatMinutes(station.stops[serviceIndex].minutes).nextDay && <small>+1 día</small>}</td>
+                        ) : <td class:list={['empty-time', { 'villars-column': station.normalizedName === 'villars' }]}>—</td>)}
+                      </tr>
+                    ))}
+                    {grid.services.length === 0 && <tr><td colspan={Math.max(1, grid.stations.length + 1)} class="no-services">No hay servicios informados para este día y sentido.</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+              {grid.services.length > 0 ? (
+                <div class="mobile-schedule" data-mobile-schedule role="region" aria-label={`Formaciones de ${label}, hacia ${initialDirection}`}>
+                  <div class="mobile-schedule-controls">
+                    <button type="button" data-mobile-previous disabled aria-label="Ver formación anterior">← <span>Anterior</span></button>
+                    <p><strong>Formación {grid.services[0].name}</strong><span>1 de {grid.services.length}</span></p>
+                    <button type="button" data-mobile-next disabled={grid.services.length === 1} aria-label="Ver formación siguiente"><span>Siguiente</span> →</button>
+                  </div>
+                  <article class="mobile-service-card">
+                    <header><div><span>Formación {grid.services[0].name}</span><small>hasta {grid.services[0].destination}</small></div></header>
+                    <dl>
+                      {grid.stations.map((station: GridStation) => {
+                        const stop = station.stops[0];
+                        return (
+                          <div class:list={{ 'villars-stop': station.normalizedName === 'villars' }}>
+                            <dt>{station.name}{station.normalizedName === 'villars' && <small>Estás acá</small>}{station.outsidePublishedService && <small>Sin servicio publicado</small>}</dt>
+                            <dd class:list={{ 'empty-time': !stop }}>{stop ? <><span>{formatMinutes(stop.minutes).value}</span>{formatMinutes(stop.minutes).nextDay && <small>+1 día</small>}</> : '—'}</dd>
+                          </div>
+                        );
+                      })}
+                    </dl>
+                  </article>
+                </div>
+              ) : (
+                <div class="mobile-schedule" data-mobile-schedule role="region" aria-label={`Formaciones de ${label}, hacia ${initialDirection}`}>
+                  <p class="mobile-no-services">No hay servicios informados para este día y sentido.</p>
+                </div>
+              )}
+            </section>          ))}
+        </div>
+        <div class="route-meta">
+          <p><strong>Operador:</strong> <span data-company>{initialRoute?.company || 'No informado'}</span></p>
+          <p><strong>Método de actualización:</strong> <span data-update-method>{initialRoute?.schedules[0]?.updateMethod === 'Estimado' ? 'Estimación por recorrido' : initialRoute?.schedules[0]?.updateMethod || 'No informado'}</span></p>
+          <p><a data-operator-link href={initialRoute?.websiteUrl || initialRoute?.sourceUrl || transportData.source.repository} target="_blank" rel="noopener noreferrer">Consultar fuente del operador</a></p>
+        </div>
+      </div>
+    )}
+    <section class="map-panel" aria-labelledby="transport-map-title">
+      <div class="map-heading">
+        <div><p class="eyebrow">Mapa regional autocontenido</p><h2 id="transport-map-title">Trenes y colectivos alrededor de Villars</h2></div>
+        <p data-live-map-status data-state="static" aria-live="polite">Cargando la cartografía local…</p>
+      </div>
+      <div class="map-layout">
+        <div class="map-stage">
+          <div class="transport-map" data-transport-map aria-label="Mapa navegable de los recorridos de transporte en Villars"></div>
+        </div>
+        <aside class="map-filters" aria-label="Filtros del mapa">
+          <div class="filter-heading"><p class="eyebrow">Capas visibles</p><h3>Filtrar mapa</h3></div>
+          <fieldset>
+            <legend>Transporte</legend>
+            <label><input type="checkbox" data-map-mode="train" checked /> <span><i class="train"></i> Trenes</span></label>
+            <label><input type="checkbox" data-map-mode="bus" checked /> <span><i class="bus"></i> Colectivos</span></label>
+          </fieldset>
+          <fieldset>
+            <legend>Recorridos</legend>
+            <label><input type="checkbox" data-map-route="belgrano-sur" checked /> <span>Belgrano Sur · Catán–Lozano</span></label>
+            <label><input type="checkbox" data-map-route="sarmiento-merlo-lobos" checked /> <span>Sarmiento · Merlo–Lobos</span></label>
+            <label><input type="checkbox" data-map-route="322-lujan" checked /> <span>322 · Marcos Paz–Luján</span></label>
+            <label><input type="checkbox" data-map-route="322-canuelas" checked /> <span>322 · Marcos Paz–Cañuelas</span></label>
+            <label><input type="checkbox" data-map-route="136-rapido" checked /> <span>136 Rápido · Primera Junta–Navarro</span></label>
+            <label><input type="checkbox" data-map-route="136-villars" checked /> <span>136 Villars / Plomer / Las Heras</span></label>
+          </fieldset>
+          <fieldset>
+            <legend>Mostrar</legend>
+            <label><input type="checkbox" data-map-layer="positions" checked /> <span><i class="live"></i> Ubicaciones</span></label>
+            <label><input type="checkbox" data-map-layer="routes" checked /> <span>Recorridos</span></label>
+            <label><input type="checkbox" data-map-layer="stops" checked /> <span>Estaciones y paradas</span></label>
+          </fieldset>
+          <button type="button" class="map-focus-live" data-map-focus-live disabled>
+            <span aria-hidden="true">⌖</span> Ver unidades visibles <strong data-map-live-count>0</strong>
+          </button>
+          <div class="position-key"><span><i class="live"></i> GPS informado</span><span><i class="estimated"></i> Estimación por horario</span></div>
+        </aside>
+      </div>
+      <p class="map-note">La cartografía PMTiles está alojada en el sitio. Los filtros actúan sólo sobre la visualización: no alteran el snapshot ni los horarios. El corredor local del 136 sigue la red vial de OpenStreetMap y conserva sus ramales hacia Villars, Plomer y Las Heras. Cuando un proveedor no entrega coordenadas autorizadas —actualmente el 136 Villars/Plomer— sus unidades se muestran sólo como estimaciones por horario y nunca como GPS observado.</p>
+    </section>
+    <aside class="data-note">
+      <h2>Sobre estos datos</h2>
+      <p>Snapshot actualizado el <strong>{updatedAt}</strong>. La copia SQLite y el JSON derivado quedan versionados para poder auditar cada cambio.</p>
+      <p>Fuente: <a href={transportData.source.repository}>SolarisPKN Transport</a>. Hash del snapshot: <code>{transportData.source.databaseSha256.slice(0, 12)}…</code></p>
+      <p>Posiciones ferroviarias: <a href="https://www.argentina.gob.ar/transporte/trenes-argentinos/app" target="_blank" rel="noopener noreferrer">Trenes Argentinos</a>. La atribución se realiza conforme a sus <a href="https://www.argentina.gob.ar/transporte/trenes-argentinos/terminos-y-condiciones" target="_blank" rel="noopener noreferrer">términos de contenido CC BY 4.0</a>.</p>
+    </aside>
+  </section>
+  {transportRoutes.length > 0 && <script>import '../scripts/transport.js'; import '../scripts/transport-map.js';</script>}
+</Layout>
+
+<style>
+  .transport-page { width: min(1240px, calc(100% - 2rem)); margin: 3rem auto; }
+  .transport-hero { max-width: 800px; margin-bottom: 2rem; }
+  .transport-hero h1 { margin: .25rem 0 1rem; color: var(--accent-mustard); font-family: Georgia, serif; font-size: clamp(2.3rem, 7vw, 4.5rem); }
+  .transport-hero > p:last-child { color: var(--text-muted); font-size: 1.08rem; }
+  .eyebrow { margin: 0; color: var(--accent-olive); font-family: 'JetBrains Mono', monospace; font-size: .78rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+  .transport-panel, .data-note, .map-panel { padding: clamp(1rem, 3vw, 2rem); border: 1px solid rgba(212,163,115,.35); border-radius: 1.5rem; background: rgba(44,33,25,.82); box-shadow: 0 20px 60px rgba(0,0,0,.25); }
+  .service-picker { display: grid; grid-template-columns: minmax(13rem,.65fr) minmax(0,1.35fr); gap: 1.25rem; align-items: center; }
+  .service-picker > div:first-child > p:last-child { margin: .4rem 0 0; color: var(--text-muted); font-size: .86rem; }
+  .service-selectors { display: grid; grid-template-columns: minmax(10rem,.8fr) minmax(15rem,1.2fr); gap: .75rem; }
+  .service-selectors label { display: grid; gap: .35rem; color: var(--text-muted); font-size: .76rem; font-weight: 750; letter-spacing: .05em; text-transform: uppercase; }
+  .service-selectors select { width: 100%; min-height: 3rem; padding: .7rem 2.4rem .7rem .85rem; border: 1px solid rgba(212,163,115,.45); border-radius: .8rem; color: var(--text-light); background: #211a15; font: inherit; text-transform: none; }
+  .service-notice { margin: 1rem 0 0; padding: .85rem 1rem; border-left: 3px solid var(--accent-mustard); border-radius: .25rem .75rem .75rem .25rem; color: var(--text-light); background: rgba(233,196,106,.09); }
+  .outside-service-column { opacity: .72; background: rgba(255,255,255,.025); }
+  .outside-service-column small { display: block; max-width: 7.5rem; color: #e7b982; font-size: .64rem; white-space: normal; }
+  .next-service { display: grid; grid-template-columns: 1fr auto; gap: .15rem 1rem; align-items: center; margin: 1.5rem 0; padding: 1rem 1.15rem; border-left: 4px solid var(--accent-olive); border-radius: .8rem; background: rgba(163,177,138,.1); }
+  .next-service strong { grid-column: 2; grid-row: 1 / span 2; color: var(--accent-mustard); font-size: clamp(1.25rem,3vw,2rem); }.next-service > span:last-child { color: var(--text-muted); font-size: .9rem; }
+  .next-service.service-cancelled { border-left-color: #d64a4a; background: rgba(159,39,39,.2); }.next-service.service-cancelled strong { color: #ff9b9b; }.next-service.service-delayed { border-left-color: #f4c430; background: rgba(244,196,48,.18); }.next-service.service-delayed strong { color: #ffe07a; }.next-service.service-confirmed { border-left-color: #3aa1c5; background: rgba(33,109,137,.16); }.next-service.service-in-progress { border-left-color: #39b877; background: rgba(29,113,70,.2); }.next-service.service-scheduled-active { border-left-color: #d99a2b; background: rgba(168,111,25,.18); }
+  .schedule-heading { display: flex; justify-content: space-between; gap: 1rem; align-items: end; margin-top: 2rem; }.schedule-heading h2 { margin: .25rem 0 0; }.schedule-heading > p { color: var(--text-muted); font-size: .85rem; text-align: right; }
+  .direction-picker { display: grid; grid-template-columns: auto minmax(15rem,22rem) 1fr; gap: .7rem 1rem; align-items: center; margin-top: 1.1rem; padding: .9rem 1rem; border: 1px solid rgba(163,177,138,.3); border-radius: 1rem; background: linear-gradient(110deg,rgba(163,177,138,.13),rgba(233,196,106,.05)); }
+  .direction-picker > label { color: var(--text-light); font-size: .82rem; font-weight: 750; letter-spacing: .03em; text-transform: uppercase; }.direction-picker > p { margin: 0; color: var(--text-muted); font-size: .78rem; }
+  .direction-select-wrap { position: relative; }.direction-select-wrap select { width: 100%; padding: .72rem 2.5rem .72rem .85rem; border: 1px solid rgba(233,196,106,.55); border-radius: .7rem; color: var(--text-light); background: #241a14; font: 700 .9rem Inter,sans-serif; appearance: none; cursor: pointer; }.direction-select-wrap > span { position: absolute; top: 50%; right: .85rem; color: var(--accent-mustard); pointer-events: none; transform: translateY(-50%); }
+  .schedule-legend { display: flex; gap: .75rem 1.25rem; flex-wrap: wrap; margin: .75rem 0 0; color: var(--text-muted); font-size: .76rem; }.schedule-legend span { display: inline-flex; gap: .45rem; align-items: center; }.schedule-legend i { width: .8rem; height: .8rem; border: 1px solid rgba(255,255,255,.28); border-radius: .2rem; background: #2f7049; }.schedule-legend i.following { background: #78ad86; }
+  .operational-legend { display: flex; gap: .55rem 1rem; flex-wrap: wrap; margin: .5rem 0 0; color: var(--text-muted); font-size: .7rem; }.operational-legend span { display: inline-flex; align-items: center; gap: .38rem; }.operational-legend i { width: .7rem; height: .7rem; border: 1px solid rgba(255,255,255,.45); border-radius: 999px; }.operational-legend .scheduled { background: #8f7a54; }.operational-legend .confirmed { background: #2f87a5; }.operational-legend .active { background: #238653; }.operational-legend .delayed { background: #f4c430; }.operational-legend .estimated { border-style: dashed; background: #d99a2b; }.operational-legend .cancelled { background: #b33232; }
+  .mobile-grid-hint, :global(.mobile-schedule) { display: none; }
+  .schedule-sections { display: grid; gap: 1.25rem; margin-top: 1rem; }
+  :global(.schedule-block) { overflow: hidden; border: 1px solid rgba(233,196,106,.3); border-radius: 1rem; background: rgba(26,20,16,.58); box-shadow: 0 10px 28px rgba(0,0,0,.16); }
+  :global(.schedule-block:nth-child(2)) { border-color: rgba(163,177,138,.38); }:global(.schedule-block:nth-child(3)) { border-color: rgba(231,111,81,.32); }
+  :global(.schedule-block-heading) { display: flex; justify-content: space-between; gap: 1rem; align-items: center; padding: .85rem 1rem; border-bottom: 1px solid rgba(233,196,106,.2); background: linear-gradient(90deg,rgba(233,196,106,.14),rgba(233,196,106,.02)); }
+  :global(.schedule-block:nth-child(2) .schedule-block-heading) { background: linear-gradient(90deg,rgba(163,177,138,.15),transparent); }:global(.schedule-block:nth-child(3) .schedule-block-heading) { background: linear-gradient(90deg,rgba(231,111,81,.12),transparent); }
+  :global(.schedule-block-heading h3) { margin: 0; color: var(--accent-mustard); font-size: 1.08rem; }:global(.schedule-block-heading span) { padding: .25rem .55rem; border-radius: 999px; color: var(--text-muted); background: rgba(0,0,0,.2); font-size: .72rem; }
+  :global(.schedule-table-scroll) { max-height: 31rem; overflow: auto; scrollbar-color: rgba(233,196,106,.45) rgba(0,0,0,.12); }:global(.schedule-table) { width: 100%; min-width: max(100%,48rem); border-collapse: separate; border-spacing: 0; font-family: 'JetBrains Mono',monospace; font-variant-numeric: tabular-nums; }
+  :global(.schedule-table caption) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  :global(.schedule-table th), :global(.schedule-table td) { min-width: 6.35rem; padding: .75rem .8rem; border-right: 1px solid rgba(212,163,115,.14); border-bottom: 1px solid rgba(212,163,115,.13); text-align: center; transition: background-color .2s,color .2s; }
+  :global(.schedule-table thead th) { position: sticky; top: 0; z-index: 3; color: var(--text-light); background: #30261e; box-shadow: 0 2px 0 rgba(233,196,106,.22); font-family: Inter,sans-serif; font-size: .8rem; }:global(.schedule-table thead th > span) { display: block; }:global(.schedule-table thead th > small) { display: block; margin-top: .15rem; color: var(--accent-mustard); font-size: .62rem; text-transform: uppercase; }
+  :global(.schedule-table .formation-column) { position: sticky; left: 0; z-index: 2; width: 10.5rem; min-width: 10.5rem; max-width: 10.5rem; text-align: left; }:global(.schedule-table thead .formation-column) { z-index: 4; color: var(--accent-mustard); background: #3a2b20; }
+  :global(.schedule-table tbody .formation-column) { color: var(--text-light); background: #261d17; font-family: Inter,sans-serif; font-size: .82rem; font-weight: 750; }:global(.schedule-table tbody .formation-column > span) { display: block; font-family: 'JetBrains Mono',monospace; font-size: .94rem; }:global(.schedule-table tbody .formation-column > small) { display: block; margin-top: .18rem; color: var(--text-muted); font-size: .62rem; font-weight: 500; }
+  :global(.schedule-table tbody tr:nth-child(even) td) { background: rgba(255,255,255,.025); }:global(.schedule-table tbody tr:hover td) { background: rgba(233,196,106,.08); }
+  :global(.schedule-table .villars-column) { border-right-color: rgba(233,196,106,.38); border-left: 1px solid rgba(233,196,106,.22); background: rgba(233,196,106,.09); }:global(.schedule-table thead .villars-column) { color: var(--accent-mustard); background: #3a3023; }
+  :global(.schedule-table td) { color: var(--text-light); font-size: .98rem; }:global(.schedule-table td small) { display: block; color: var(--accent-terracotta); font-family: Inter,sans-serif; font-size: .62rem; }:global(.schedule-table .empty-time) { color: rgba(255,255,255,.22); background-image: linear-gradient(135deg,transparent 49%,rgba(255,255,255,.04) 50%,transparent 51%); }:global(.schedule-table .no-services) { padding: 1.4rem; color: var(--text-muted); font-family: Inter,sans-serif; text-align: left; }
+  :global(.schedule-table tbody .next-service-row td) { color: #effff4; background: rgba(47,112,73,.48); }:global(.schedule-table tbody .next-service-row .formation-column) { color: #fff; background: #2f7049; }:global(.schedule-table tbody .next-service-row .villars-column) { background: rgba(65,145,91,.68); }
+  :global(.schedule-table tbody .following-service-row td) { color: #f4fff7; background: rgba(120,173,134,.24); }:global(.schedule-table tbody .following-service-row .formation-column) { color: #f7fff9; background: #557e61; }:global(.schedule-table tbody .following-service-row .villars-column) { background: rgba(120,173,134,.4); }
+  :global(.service-rank) { display: inline-block; margin-top: .42rem; padding: .18rem .4rem; border: 1px solid rgba(255,255,255,.28); border-radius: 999px; color: #fff; font-size: .58rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+  :global(.service-status) { display: inline-flex !important; width: fit-content; margin-top: .35rem; padding: .16rem .42rem; border: 1px solid rgba(255,255,255,.34); border-radius: 999px; color: #fff !important; font-family: Inter,sans-serif !important; font-size: .58rem !important; font-weight: 800 !important; line-height: 1.2; text-transform: uppercase; letter-spacing: .035em; }:global(.service-status-scheduled) { background: #6f6045; }:global(.service-status-confirmed) { background: #216d89; }:global(.service-status-in-progress) { background: #1d7146; }:global(.service-status-delayed) { color: #2a2100 !important; background: #f4c430; }:global(.service-status-scheduled-active) { border-style: dashed; background: #a86f19; }:global(.service-status-cancelled) { background: #9f2727; }:global(.service-status-completed) { background: #555; }
+  :global(.schedule-table tbody .service-confirmed-row td) { background: rgba(33,109,137,.3); }:global(.schedule-table tbody .service-confirmed-row .formation-column) { background: #215b70; }:global(.schedule-table tbody .service-in-progress-row td) { background: rgba(29,113,70,.42); }:global(.schedule-table tbody .service-in-progress-row .formation-column) { background: #185b39; }:global(.schedule-table tbody .service-delayed-row td) { color: #fff7d1; background: rgba(196,145,8,.34); }:global(.schedule-table tbody .service-delayed-row .formation-column) { background: #7a5b08; }:global(.schedule-table tbody .service-scheduled-active-row td) { background: rgba(168,111,25,.28); }:global(.schedule-table tbody .service-scheduled-active-row .formation-column) { background: #74501d; }:global(.schedule-table tbody .service-cancelled-row td) { color: #fff1f1; background: rgba(159,39,39,.42); }:global(.schedule-table tbody .service-cancelled-row .formation-column) { background: #791f1f; }
+  .route-meta { display: flex; gap: .75rem 1.5rem; flex-wrap: wrap; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid rgba(212,163,115,.2); color: var(--text-muted); font-size: .85rem; }.route-meta p { margin: 0; }
+  .data-note { margin-top: 1.25rem; background: rgba(44,33,25,.5); }.data-note h2 { font-size: 1.15rem; }.data-note p { margin: .4rem 0; color: var(--text-muted); font-size: .9rem; }.data-note code { word-break: break-all; }
+  .map-panel { margin-top: 1.25rem; }.map-heading { display: flex; justify-content: space-between; align-items: end; gap: 1.5rem; }.map-heading h2 { margin: .25rem 0 0; }.map-heading > p { max-width: 32rem; margin: 0; color: var(--text-muted); font-size: .85rem; text-align: right; }.map-heading > p[data-state='live'] { color: #9ed7b0; }.map-heading > p[data-state='error'] { color: #f4a261; }
+  .map-layout { display: grid; grid-template-columns: minmax(0,1fr) 17.5rem; gap: 1rem; align-items: stretch; margin-top: 1rem; }.map-stage { min-width: 0; }.transport-map { min-height: 34rem; height: 100%; overflow: hidden; border: 1px solid rgba(233,196,106,.25); border-radius: 1rem; background: #17110d; }
+  :global(.transport-vehicle-icon) { background: transparent; border: 0; }
+  :global(.transport-vehicle-pin) { width: 2.25rem; height: 2.25rem; display: grid; place-items: center; box-sizing: border-box; border: 2px solid #fff; border-radius: 999px; color: #fff; background: var(--vehicle-color); box-shadow: 0 0 0 3px rgba(23,17,13,.58), 0 .2rem .65rem rgba(0,0,0,.38); }
+  :global(.transport-vehicle-pin svg) { width: 1.35rem; height: 1.35rem; fill: currentColor; }
+  :global(.transport-vehicle-pin.is-estimated) { border-color: #ffe7a8; border-style: dashed; box-shadow: 0 0 0 3px rgba(255,183,3,.3), 0 .2rem .65rem rgba(0,0,0,.32); }
+  :global(.transport-vehicle-pin.is-stale) { opacity: .5; filter: grayscale(.25); }
+  .map-filters { padding: 1rem; border: 1px solid rgba(212,163,115,.25); border-radius: 1rem; background: rgba(26,20,16,.7); }.filter-heading h3 { margin: .2rem 0 .9rem; }.map-filters fieldset { display: grid; gap: .58rem; margin: 0; padding: .85rem 0; border: 0; border-top: 1px solid rgba(212,163,115,.18); }.map-filters legend { padding: .85rem 0 .25rem; color: var(--text-light); font-size: .78rem; font-weight: 750; text-transform: uppercase; letter-spacing: .05em; }
+  .map-filters label { display: flex; gap: .55rem; align-items: start; color: var(--text-muted); font-size: .82rem; cursor: pointer; }.map-filters input { margin-top: .13rem; accent-color: var(--accent-mustard); }.map-filters label > span { display: inline-flex; gap: .4rem; align-items: center; }.map-filters label small { display: block; color: rgba(255,255,255,.38); font-size: .65rem; }.map-filters .unavailable { cursor: not-allowed; opacity: .65; }
+  .map-filters i, .position-key i { display: inline-block; width: .72rem; height: .72rem; border-radius: 999px; background: #e9c46a; }.map-filters i.bus { background: #6fb7ff; }.map-filters i.live, .position-key i.live { border: 2px solid white; background: #219ebc; }.position-key i.estimated { border: 2px dashed white; background: #ffb703; }
+  .position-key { display: grid; gap: .45rem; padding-top: .85rem; border-top: 1px solid rgba(212,163,115,.18); color: var(--text-muted); font-size: .72rem; }.position-key span { display: flex; gap: .45rem; align-items: center; }
+  .map-focus-live { display: flex; width: 100%; justify-content: center; align-items: center; gap: .45rem; margin: .3rem 0 .85rem; padding: .65rem .75rem; border: 1px solid rgba(233,196,106,.5); border-radius: .7rem; color: var(--bg-dark); background: var(--accent-mustard); font-size: .78rem; font-weight: 800; cursor: pointer; }.map-focus-live strong { min-width: 1.45rem; padding: .05rem .35rem; border-radius: 999px; color: var(--text-light); background: rgba(26,20,16,.75); }.map-focus-live:disabled { cursor: not-allowed; opacity: .48; }
+  .map-note { margin: .8rem 0 0; color: var(--text-muted); font-size: .8rem; }:global(.leaflet-container) { color: #241a14; font-family: Inter, sans-serif; }:global(.leaflet-popup-content-wrapper) { border-radius: .65rem; }:global(.leaflet-control-attribution) { font-size: .65rem; }
+  @media (max-width: 900px) { .service-picker { grid-template-columns: 1fr; }.direction-picker { grid-template-columns: auto minmax(14rem,1fr); }.direction-picker > p { grid-column: 1 / -1; }.map-layout { grid-template-columns: 1fr; }.map-filters { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 0 1rem; }.filter-heading, .map-focus-live, .position-key { grid-column: 1 / -1; }.map-filters fieldset { border-top: 0; }.transport-map { min-height: 29rem; } }
+  @media (max-width: 640px) {
+    .transport-page { width: min(100% - 1rem, 1240px); margin-top: 1.5rem; }
+    .transport-panel, .data-note, .map-panel { border-radius: 1rem; }
+    .service-selectors { grid-template-columns: 1fr; }
+    .next-service { grid-template-columns: 1fr; }
+    .next-service strong { grid-column: 1; grid-row: auto; }
+    .schedule-heading, .map-heading { align-items: start; flex-direction: column; }
+    .schedule-heading > p, .map-heading > p { text-align: left; }
+    .direction-picker { grid-template-columns: 1fr; }
+    .direction-picker > p { grid-column: auto; }
+    .desktop-grid-hint { display: none; }
+    .mobile-grid-hint { display: inline; }
+    :global(.schedule-table-scroll) { display: none; }
+    :global(.mobile-schedule) { display: block; }
+    :global(.mobile-no-services) { margin: 0; padding: 1.25rem 1rem; color: var(--text-muted); font-size: .82rem; }
+    :global(.mobile-schedule-controls) { display: grid; grid-template-columns: minmax(5.75rem,auto) minmax(0,1fr) minmax(5.75rem,auto); gap: .45rem; align-items: center; padding: .75rem; border-bottom: 1px solid rgba(233,196,106,.2); background: rgba(0,0,0,.18); }
+    :global(.mobile-schedule-controls button) { min-height: 2.75rem; padding: .65rem .55rem; border: 1px solid rgba(233,196,106,.52); border-radius: .7rem; color: var(--text-light); background: rgba(233,196,106,.1); font: 700 .74rem Inter,sans-serif; cursor: pointer; }
+    :global(.mobile-schedule-controls button:not(:disabled):active) { background: rgba(233,196,106,.22); transform: translateY(1px); }
+    :global(.mobile-schedule-controls button:focus-visible) { outline: 3px solid rgba(233,196,106,.45); outline-offset: 2px; }
+    :global(.mobile-schedule-controls button:disabled) { border-color: rgba(255,255,255,.12); color: rgba(255,255,255,.34); background: transparent; cursor: not-allowed; }
+    :global(.mobile-schedule-controls p) { display: grid; gap: .12rem; min-width: 0; margin: 0; text-align: center; }
+    :global(.mobile-schedule-controls strong) { overflow: hidden; color: var(--accent-mustard); font: 750 .78rem Inter,sans-serif; text-overflow: ellipsis; white-space: nowrap; }
+    :global(.mobile-schedule-controls p > span) { color: var(--text-muted); font: 600 .67rem 'JetBrains Mono',monospace; }
+    :global(.mobile-service-card) { margin: 0; }
+    :global(.mobile-service-card > header) { display: flex; justify-content: space-between; gap: .75rem; align-items: center; padding: .9rem 1rem; background: linear-gradient(110deg,rgba(233,196,106,.13),transparent); }
+    :global(.mobile-service-card > header > div) { display: grid; gap: .15rem; }
+    :global(.mobile-service-card > header span) { color: var(--text-light); font: 800 .95rem 'JetBrains Mono',monospace; }
+    :global(.mobile-service-card > header small) { color: var(--text-muted); font: 600 .68rem Inter,sans-serif; }
+    :global(.mobile-service-card .service-rank) { margin: 0; padding: .28rem .5rem; white-space: nowrap; }
+    :global(.mobile-service-card dl) { margin: 0; }
+    :global(.mobile-service-card dl > div) { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 1rem; align-items: center; min-height: 3.25rem; padding: .7rem 1rem; border-top: 1px solid rgba(212,163,115,.14); }
+    :global(.mobile-service-card dl > div:nth-child(even)) { background: rgba(255,255,255,.025); }
+    :global(.mobile-service-card dt) { display: flex; gap: .5rem; align-items: center; color: var(--text-light); font: 650 .82rem Inter,sans-serif; }
+    :global(.mobile-service-card dt small) { padding: .16rem .38rem; border-radius: 999px; color: #211b15; background: var(--accent-mustard); font-size: .56rem; font-weight: 850; letter-spacing: .03em; text-transform: uppercase; }
+    :global(.mobile-service-card dd) { margin: 0; color: var(--text-light); font: 800 1rem 'JetBrains Mono',monospace; font-variant-numeric: tabular-nums; text-align: right; }
+    :global(.mobile-service-card dd small) { display: block; color: var(--accent-terracotta); font: 600 .58rem Inter,sans-serif; }
+    :global(.mobile-service-card .villars-stop) { border-top-color: rgba(233,196,106,.42); border-bottom: 1px solid rgba(233,196,106,.3); background: rgba(233,196,106,.11) !important; }
+    :global(.mobile-service-card.next-service-card > header) { background: #2f7049; }
+    :global(.mobile-service-card.next-service-card .villars-stop) { background: rgba(65,145,91,.42) !important; }
+    :global(.mobile-service-card.following-service-card > header) { background: #557e61; }
+    :global(.mobile-service-card.following-service-card .villars-stop) { background: rgba(120,173,134,.28) !important; }
+    :global(.mobile-service-card.service-confirmed-card > header) { background: #215b70; }:global(.mobile-service-card.service-in-progress-card > header) { background: #185b39; }:global(.mobile-service-card.service-delayed-card > header) { background: #7a5b08; }:global(.mobile-service-card.service-delayed-card) { border-color: rgba(244,196,48,.62); background: rgba(196,145,8,.12); }:global(.mobile-service-card.service-scheduled-active-card > header) { background: #74501d; }:global(.mobile-service-card.service-cancelled-card > header) { background: #791f1f; }:global(.mobile-service-card.service-cancelled-card) { border-color: rgba(214,74,74,.62); background: rgba(159,39,39,.13); }
+    .map-filters { grid-template-columns: 1fr; }
+    .filter-heading, .map-focus-live, .position-key { grid-column: auto; }
+    .transport-map { min-height: 25rem; }
+  }
+</style>

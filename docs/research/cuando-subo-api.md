@@ -30,9 +30,26 @@ stops-for-route/{route}.json
 schedule-for-stop/{stop}.json?date=AAAA-MM-DD&key=web
 ```
 
+Durante la verificación del 31 de agosto de 2026, los métodos JSON
+`stops-for-route` y `schedule-for-stop` rechazaron consultas con la clave pública
+`web` en parte de las pruebas. La interfaz pública oficial siguió exponiendo:
+
+```text
+https://cuandosubo.sube.gob.ar/onebusaway-webapp/where/iphone/
+stops-for-route.action?id={route}&groupIndex=0
+trip.action?id={tripId}
+stop.action?id={stopId}
+```
+
+La lista de recorrido conserva el orden de sus 160 paradas, la vista de viaje
+agrupa paradas bajo cada hora programada y la vista de parada publica relaciones
+de cercanía. El fallback implementado usa esas páginas sólo para `tripId` ya
+conocidos en el XLSX: no intenta descubrir un cronograma diario nuevo mediante
+HTML y falla de forma conservadora ante redirecciones o recorridos incompletos.
+
 El backend no expone GraphQL. Aunque OneBusAway documenta el método REST `schedule-for-route`, esta instancia responde `404`; `trips-for-route?includeSchedule=true` sí existe, pero sólo devuelve viajes activos alrededor del instante consultado y no reemplaza al cronograma diario.
 
-OneBusAway no ofrece en esta instancia un cronograma completo por recorrido. El conector consulta `schedule-for-stop` para cada parada configurada, filtra el `routeId` exacto y une las respuestas por `tripId`. De esa unión sale la matriz formación × parada. Para recorridos autodescubiertos se limitan las consultas a las cabeceras y hasta doce paradas uniformemente distribuidas; los perfiles revisados manualmente conservan sus puntos exactos.
+OneBusAway no ofrece en esta instancia un cronograma completo por recorrido. Cuando `schedule-for-stop` está disponible, el conector consulta cada parada configurada, filtra el `routeId` exacto y une las respuestas por `tripId`. De esa unión sale la matriz formación × parada. Si el JSON rechaza el acceso, la vista web de cada formación conocida aporta el mismo cruce `tripId` × `stopId`, sin interpolación. Para recorridos autodescubiertos se limitan las consultas a las cabeceras y hasta doce paradas uniformemente distribuidas; los perfiles revisados manualmente conservan sus puntos exactos.
 
 El catálogo de `routes-for-agency` se agrupa por servicio y se cachea durante siete días en `ramales.xlsx`, hoja `Lista de ramales`. Así, el barrido de agencies no se repite en la ejecución diaria normal.
 
@@ -45,6 +62,12 @@ El catálogo de `routes-for-agency` se agrupa por servicio y se cachea durante s
 | 322 Marcos Paz–Cañuelas | `135` | `135_1625` | `135_1626` |
 
 Las paradas exactas y su orden están centralizados en `config/schedule_sources.json` para poder corregirlos sin modificar el código.
+
+En el 136A, la asociación de hitos se verificó contra el orden vigente del
+recorrido, los nombres de las paradas cercanas publicados por Cuándo SUBO y las
+coordenadas ferroviarias de SOFSE/Georef. El sentido `739_671` no contiene una
+parada de recorrido para General Hornos ni Zamudio; por eso esos horarios siguen
+siendo ausencia explícita (`null`) en vez de copiar el horario del sentido opuesto.
 
 ## Hallazgo sobre Villars/Plomer
 

@@ -2,7 +2,7 @@
 
 [🇺🇸 English](LEGAL.md) | 🇦🇷 **Español**
 
-Última revisión: 2026-08-25
+Última revisión: 2026-08-30
 
 Este documento registra la procedencia y los límites pretendidos de SolarisPKN-Transport. Se publica por transparencia y para reducir riesgos; no constituye asesoramiento legal ni reemplaza la revisión de un abogado argentino calificado o una autorización escrita de los proveedores de datos.
 
@@ -55,7 +55,32 @@ El proyecto:
 
 El conector SOFSE reproduce un flujo de autenticación de compatibilidad observado en un cliente público y obtiene un token temporal del servicio. Como la interfaz requiere autenticación y no está documentada como API pública para desarrolladores, desplegarla sin autorización del proveedor mantiene una incertidumbre legal y contractual. Para un despliegue público de menor riesgo, corresponde obtener permiso escrito o una credencial oficial de SOFSE.
 
-El conector de Cuándo SUBO usa la clave pública del cliente `web` y ninguna credencial personal. Su disponibilidad no establece una licencia de redistribución. Se recomienda obtener una aclaración escrita de Nación Servicios antes de operar un espejo público o un servicio comercial.
+El conector de Cuándo SUBO usa la clave pública del cliente `web` y ninguna credencial personal. Cuando ese JSON no está disponible, el fallback consulta únicamente páginas web públicas de viajes ya identificados, con frecuencia diaria y sin evadir el rechazo del endpoint. Su disponibilidad no establece una licencia de redistribución. Se recomienda obtener una aclaración escrita de Nación Servicios antes de operar un espejo público o un servicio comercial.
+
+## Posiciones vivas y estimaciones
+
+El contrato reusable de posiciones vivas es un formato técnico de interoperabilidad, no una autorización
+de acceso, redistribución ni operación de un servicio público de seguimiento. Quien lo despliegue sigue
+siendo responsable de los términos vigentes, autorización, límites de uso, atribución, retención y normas
+aplicables de cada proveedor.
+
+Las coordenadas informadas por un proveedor y las estimaciones generadas por SolarisPKN se distinguen de
+forma deliberada. Una posición estimada es una inferencia o modificación de la implementación consumidora:
+no debe presentarse como GPS, como dato informado por el proveedor ni como ubicación de precisión
+garantizada. Un horario programado no es una posición viva. Un servicio activo sin coordenadas se representa
+sin marcador en el mapa.
+
+El repositorio contiene únicamente fixtures ficticios y sanitizados de posiciones vivas. No publica
+respuestas crudas, telemetría actual de vehículos, secretos de API de proveedores, identificadores de
+cuenta o bucket, URLs firmadas, datos de identidad, ubicaciones de usuarios ni material local protegido de
+secretos. Los ejemplos usan adaptadores genéricos inyectados y variables de entorno con valores vacíos.
+Las instantáneas operativas deben ser breves, limitarse a la necesidad del transporte público y quedar
+fuera del historial Git y de la base de cronogramas.
+
+Los identificadores públicos de unidades o servicios también pueden ser datos controlados por el proveedor
+y cambiar sin aviso. No deben combinarse con registros de pasajeros, conductores, empleados, pagos,
+dispositivos ni ubicaciones personales. Si un proveedor rechaza el acceso o entrega un payload inseguro,
+corresponde una retención vencida acotada o el fallback a cronogramas, nunca intentar evadir sus controles.
 
 ## Privacidad
 

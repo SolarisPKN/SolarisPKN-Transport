@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "timezone": "America/Argentina/Buenos_Aires",
+  "services": [
+    {
+      "key": "belgrano-sur-catan-lozano",
+      "mode": "train",
+      "label": "Gonzalez Catan - Lozano",
+      "provider": "sofse",
+      "providerLineId": "67",
+      "maximumSimultaneousVehicles": 2,
+      "livePolicy": {
+        "reported": "Only provider coordinates with a stable service identifier",
+        "fallback": "timetable-estimate",
+        "neverPromoteEstimateToReported": true
+      }
+    },
+    {
+      "key": "sarmiento-merlo-lobos",
+      "mode": "train",
+      "label": "Merlo - Lobos",
+      "provider": "sofse",
+      "providerLineId": "53",
+      "maximumSimultaneousVehicles": 4,
+      "livePolicy": {
+        "reported": "Only provider coordinates with a stable service identifier",
+        "fallback": "timetable-estimate",
+        "neverPromoteEstimateToReported": true
+      }
+    },
+    {
+      "key": "136-rapido",
+      "mode": "bus",
+      "label": "136 Rapido",
+      "provider": "cuando-subo",
+      "agencyId": "739",
+      "routeIds": ["739_670", "739_671"],
+      "publicBridge": "arrival-estimates",
+      "livePolicy": {
+        "reported": "Only an expressly authorized vehicle-position source",
+        "fallback": "arrival-calibrated-timetable-estimate",
+        "neverPromoteEstimateToReported": true
+      }
+    },
+    {
+      "key": "136-villars",
+      "mode": "bus",
+      "label": "136 Villars / Plomer",
+      "provider": "local-timetable",
+      "routeIds": [],
+      "scheduleVariants": [
+        { "key": "E", "corridor": "Marcos Paz - Villars", "directions": 2, "intermediateTimes": "estimated" },
+        { "key": "F", "corridor": "Marcos Paz - Plomer", "directions": 2, "intermediateTimes": "estimated" },
+        { "key": "G", "corridor": "Plomer - Villars - Las Heras - Marcos Paz", "directions": 1, "intermediateTimes": "manual" },
+        { "key": "H", "corridor": "Villars - Las Heras", "directions": 2, "intermediateTimes": "estimated" },
+        { "key": "I", "corridor": "Plomer - Las Heras", "directions": 2, "intermediateTimes": "estimated" }
+      ],
+      "publicBridge": "none",
+      "livePolicy": {
+        "reported": "Unavailable until an authorized live source exists",
+        "fallback": "timetable-estimate",
+        "neverPromoteEstimateToReported": true
+      }
+    },
+    {
+      "key": "322-lujan",
+      "mode": "bus",
+      "label": "322 Marcos Paz - Lujan",
+      "provider": "cuando-subo",
+      "agencyId": "135",
+      "routeIds": ["135_1623", "135_1624"],
+      "publicBridge": "arrival-estimates",
+      "livePolicy": {
+        "reported": "Only an expressly authorized vehicle-position source",
+        "fallback": "arrival-calibrated-timetable-estimate",
+        "neverPromoteEstimateToReported": true
+      }
+    },
+    {
+      "key": "322-canuelas",
+      "mode": "bus",
+      "label": "322 Marcos Paz - Canuelas",
+      "provider": "cuando-subo",
+      "agencyId": "135",
+      "routeIds": ["135_1625", "135_1626"],
+      "publicBridge": "arrival-estimates",
+      "livePolicy": {
+        "reported": "Only an expressly authorized vehicle-position source",
+        "fallback": "arrival-calibrated-timetable-estimate",
+        "neverPromoteEstimateToReported": true
+      }
+    }
+  ],
+  "publication": {
+    "snapshotKey": "current.json",
+    "recommendedPollSeconds": 60,
+    "requireAtomicReplace": true,
+    "requireShortCache": true,
+    "browserReceivesProviderCredentials": false
+  }
+}

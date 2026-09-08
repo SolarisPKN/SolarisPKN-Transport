@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-30T12:00:00.000Z",
+  "expiresAt": "2026-08-30T12:02:00.000Z",
+  "discardAfter": "2026-08-30T12:10:00.000Z",
+  "status": "ok",
+  "sources": [
+    {
+      "id": "provider-b",
+      "status": "ok",
+      "lastAttemptAt": "2026-08-30T12:00:00.000Z",
+      "lastSuccessfulAt": "2026-08-30T12:00:00.000Z",
+      "vehicleCount": 1,
+      "errorCode": null
+    }
+  ],
+  "vehicles": [
+    {
+      "id": "train:provider-b:service-204",
+      "mode": "train",
+      "provider": "provider-b",
+      "operator": "Example Rail",
+      "routeId": "branch-7",
+      "tripId": "service-204",
+      "direction": "West Station",
+      "label": "Train 204",
+      "status": "active",
+      "positionKind": "estimated",
+      "position": {
+        "lat": -34.7441,
+        "lon": -58.9017
+      },
+      "observedAt": null,
+      "receivedAt": "2026-08-30T12:00:00.000Z",
+      "dataStatus": "fresh",
+      "source": {
+        "id": "provider-b",
+        "recordId": "service-204"
+      }
+    }
+  ],
+  "fallback": {
+    "mode": "none",
+    "reason": null,
+    "timetableRef": null
+  }
+}

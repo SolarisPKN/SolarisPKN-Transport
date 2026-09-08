@@ -1,0 +1,13 @@
+{
+  "rules": [
+    {
+      "allowed": {
+        "origins": ["https://villars.solarispkn.com.ar"],
+        "methods": ["GET", "HEAD"],
+        "headers": ["if-none-match", "range"]
+      },
+      "exposeHeaders": ["etag", "content-range", "accept-ranges"],
+      "maxAgeSeconds": 3600
+    }
+  ]
+}

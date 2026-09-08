@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-30T12:00:00.000Z",
+  "expiresAt": "2026-08-30T12:02:00.000Z",
+  "discardAfter": "2026-08-30T12:10:00.000Z",
+  "status": "ok",
+  "sources": [
+    {
+      "id": "provider-b",
+      "status": "ok",
+      "lastAttemptAt": "2026-08-30T12:00:00.000Z",
+      "lastSuccessfulAt": "2026-08-30T12:00:00.000Z",
+      "vehicleCount": 1,
+      "errorCode": null
+    }
+  ],
+  "vehicles": [
+    {
+      "id": "train:provider-b:service-205",
+      "mode": "train",
+      "provider": "provider-b",
+      "operator": "Example Rail",
+      "routeId": "branch-7",
+      "tripId": "service-205",
+      "direction": "Central Station",
+      "label": "Train 205",
+      "status": "active",
+      "positionKind": "none",
+      "position": null,
+      "observedAt": null,
+      "receivedAt": "2026-08-30T12:00:00.000Z",
+      "dataStatus": "fresh",
+      "source": {
+        "id": "provider-b",
+        "recordId": "service-205"
+      }
+    }
+  ],
+  "fallback": {
+    "mode": "none",
+    "reason": null,
+    "timetableRef": null
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "villars-transport-live",
+  "main": "src/index.js",
+  "compatibility_date": "2026-08-25",
+  "triggers": {
+    "crons": ["* * * * *"]
+  },
+  "r2_buckets": [
+    {
+      "binding": "TRANSPORT_LIVE",
+      "bucket_name": "villars-transport-live"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}

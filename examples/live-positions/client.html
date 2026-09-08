@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Live transport contract example</title>
+  </head>
+  <body>
+    <main>
+      <h1>Live transport</h1>
+      <p id="live-state" role="status" aria-live="polite">Connecting…</p>
+      <ul id="active-services" aria-label="Active services"></ul>
+    </main>
+    <script type="module">
+      import { LivePositionsClient } from './client.mjs';
+
+      const state = document.querySelector('#live-state');
+      const services = document.querySelector('#active-services');
+      const messages = {
+        fresh: 'Live positions are current.',
+        stale: 'Live positions are delayed and clearly marked as stale.',
+        'timetable-only': 'Live positions are unavailable. Showing local timetables only.',
+      };
+
+      const client = new LivePositionsClient({
+        url: '/live-positions/current.json',
+        onState: ({ kind }) => { state.textContent = messages[kind]; },
+        onSnapshot: ({ snapshot }) => {
+          services.replaceChildren(...snapshot.vehicles.map((vehicle) => {
+            const item = document.createElement('li');
+            const position = vehicle.positionKind === 'none'
+              ? 'active, position not reported'
+              : `${vehicle.positionKind} position${vehicle.dataStatus === 'stale' ? ', stale' : ''}`;
+            item.textContent = `${vehicle.label}: ${position}`;
+            return item;
+          }));
+        },
+      });
+      client.start();
+      window.addEventListener('pagehide', () => client.stop(), { once: true });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-30T12:00:00.000Z",
+  "expiresAt": "2026-08-30T12:02:00.000Z",
+  "discardAfter": "2026-08-30T12:10:00.000Z",
+  "status": "degraded",
+  "sources": [
+    {
+      "id": "provider-a",
+      "status": "unavailable",
+      "lastAttemptAt": "2026-08-30T12:00:00.000Z",
+      "lastSuccessfulAt": "2026-08-30T11:59:00.000Z",
+      "vehicleCount": 1,
+      "errorCode": "semantic-invalid-response"
+    },
+    {
+      "id": "provider-b",
+      "status": "ok",
+      "lastAttemptAt": "2026-08-30T12:00:00.000Z",
+      "lastSuccessfulAt": "2026-08-30T12:00:00.000Z",
+      "vehicleCount": 1,
+      "errorCode": null
+    }
+  ],
+  "vehicles": [
+    {
+      "id": "bus:provider-a:vehicle-17",
+      "mode": "bus",
+      "provider": "provider-a",
+      "operator": "Example Transit",
+      "routeId": "route-12-outbound",
+      "tripId": "trip-20260830-17",
+      "direction": "North Terminal",
+      "label": "Route 12",
+      "status": "active",
+      "positionKind": "reported",
+      "position": {
+        "lat": -34.7012,
+        "lon": -58.8123
+      },
+      "observedAt": "2026-08-30T11:58:45.000Z",
+      "receivedAt": "2026-08-30T11:59:00.000Z",
+      "dataStatus": "stale",
+      "source": {
+        "id": "provider-a",
+        "recordId": "vehicle-17"
+      }
+    },
+    {
+      "id": "train:provider-b:service-204",
+      "mode": "train",
+      "provider": "provider-b",
+      "operator": "Example Rail",
+      "routeId": "branch-7",
+      "tripId": "service-204",
+      "direction": "West Station",
+      "label": "Train 204",
+      "status": "active",
+      "positionKind": "estimated",
+      "position": {
+        "lat": -34.7441,
+        "lon": -58.9017
+      },
+      "observedAt": null,
+      "receivedAt": "2026-08-30T12:00:00.000Z",
+      "dataStatus": "fresh",
+      "source": {
+        "id": "provider-b",
+        "recordId": "service-204"
+      }
+    }
+  ],
+  "fallback": {
+    "mode": "none",
+    "reason": null,
+    "timetableRef": null
+  }
+}

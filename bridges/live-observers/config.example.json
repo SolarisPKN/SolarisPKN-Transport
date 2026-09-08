@@ -1,0 +1,22 @@
+{
+  "publish": false,
+  "ingestBaseUrl": "",
+  "stateDirectory": ".state",
+  "bounds": { "minLat": -35.35, "maxLat": -34.30, "minLon": -59.75, "maxLon": -58.20 },
+  "cuandoSubo": {
+    "minimumRequestIntervalMs": 60000,
+    "snapshotTtlMs": 900000,
+    "stops": [
+      { "id": "14_6568117959", "name": "Moron", "routeIds": ["739_670", "739_671"] },
+      { "id": "14_6539101339", "name": "Merlo", "routeIds": ["739_670", "739_671"] },
+      { "id": "14_6525104583", "name": "Marcos Paz", "routeIds": ["739_670", "739_671"] },
+      { "id": "14_6329104604", "name": "Zamudio", "routeIds": ["739_670", "739_671"] },
+      { "id": "14_6329104529", "name": "General Las Heras", "routeIds": ["739_670", "739_671"] },
+      { "id": "14_06525000111", "name": "Marcos Paz - 322", "routeIds": ["135_1623", "135_1624", "135_1625", "135_1626"] },
+      { "id": "14_06329000014", "name": "General Las Heras - 322", "routeIds": ["135_1623", "135_1624", "135_1625", "135_1626"] },
+      { "id": "14_06525000082", "name": "Acceso a Villars", "routeIds": ["135_1623", "135_1624"] },
+      { "id": "14_06497000101", "name": "Lujan", "routeIds": ["135_1623", "135_1624"] },
+      { "id": "14_06134000038", "name": "Canuelas - Hospital Cuenca", "routeIds": ["135_1625", "135_1626"] }
+    ]
+  }
+}

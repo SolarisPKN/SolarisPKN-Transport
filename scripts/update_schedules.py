@@ -42,6 +42,9 @@ SOFSE_BASE_URL = "https://api-servicios.sofse.gob.ar/v1"
 CUANDO_SUBO_BASE_URL = (
     "https://cuandosubo.sube.gob.ar/onebusaway-api-webapp/api/where"
 )
+CUANDO_SUBO_WEB_URL = (
+    "https://cuandosubo.sube.gob.ar/onebusaway-webapp/where/iphone"
+)
 CUANDO_SUBO_API_KEY = "web"
 DEFAULT_TIMEOUT = 15
 HTTP_RETRIES = 2
@@ -310,6 +313,29 @@ class JsonHttpClient:
                 if attempt < HTTP_RETRIES:
                     time.sleep(0.5 * (attempt + 1))
 
+        raise SourceUnavailable(f"No se pudo consultar {url}: {last_error}")
+
+    def request_text(self, url: str) -> str:
+        """Consulta texto público sin intentar interpretarlo como JSON."""
+        last_error: Exception | None = None
+        for attempt in range(HTTP_RETRIES + 1):
+            try:
+                request = urllib.request.Request(
+                    url,
+                    headers={
+                        "Accept": "text/html,application/xhtml+xml",
+                        "User-Agent": "SolarisPKN-Transport/1.0",
+                    },
+                    method="GET",
+                )
+                with urllib.request.urlopen(
+                    request, timeout=self.timeout, context=self.ssl_context,
+                ) as response:
+                    return response.read().decode("utf-8-sig")
+            except (urllib.error.URLError, TimeoutError, UnicodeDecodeError) as exc:
+                last_error = exc
+                if attempt < HTTP_RETRIES:
+                    time.sleep(0.5 * (attempt + 1))
         raise SourceUnavailable(f"No se pudo consultar {url}: {last_error}")
 
 
@@ -635,8 +661,17 @@ class CuandoSuboProvider:
     ) -> ScheduleSnapshot:
         station_maps: list[dict[str, int]] = []
         for station in direction["stations"]:
-            response = self.schedule_for_stop(station["stop_id"], source_date)
-            station_maps.append(self.route_times(response, direction["route_id"], source_date))
+            stop_id = str(station.get("stop_id") or "").strip()
+            if not stop_id:
+                # La estación sigue siendo parte del contrato XLSX aunque el
+                # proveedor todavía no exponga una parada verificable para ella.
+                # No se inventan horarios: la columna se completa con null.
+                station_maps.append({})
+                continue
+            response = self.schedule_for_stop(stop_id, source_date)
+            station_maps.append(
+                self.route_times(response, direction["route_id"], source_date)
+            )
 
         origin_trips = station_maps[0]
         if not origin_trips:
@@ -652,6 +687,94 @@ class CuandoSuboProvider:
             rows.append((trip_id, row))
         rows.sort(key=lambda pair: minute_value(pair[1][0]) or 0)
 
+        snapshot = ScheduleSnapshot(
+            stations=[station["name"] for station in direction["stations"]],
+            formations=[trip_id for trip_id, _ in rows],
+            matrix=[row for _, row in rows],
+            source_date=source_date,
+        )
+        validate_snapshot(snapshot, False)
+        return snapshot
+
+    @staticmethod
+    def trip_page_times(page: str, expected_trip_id: str) -> dict[str, int]:
+        """Extrae horarios publicados en la vista oficial de un viaje.
+
+        La vista agrupa varias paradas bajo una misma hora. Se conserva esa
+        granularidad tal como la publica el proveedor y se detecta el cruce de
+        medianoche por el orden del recorrido; nunca se interpolan horarios.
+        """
+        if not re.search(
+            rf"Trip\s*#\s*{re.escape(expected_trip_id)}(?:<|\s)", page, re.I,
+        ):
+            raise IncompleteSchedule(
+                f"La vista web no confirma el viaje {expected_trip_id}"
+            )
+
+        result: dict[str, int] = {}
+        previous: int | None = None
+        groups = re.findall(
+            r'<div\s+class="TripPage-ArrivalTime">\s*([^<]+?)\s*</div>'
+            r'\s*<ul\s+class="buttons">(.*?)</ul>',
+            page,
+            flags=re.I | re.S,
+        )
+        for clock, stop_list in groups:
+            parsed_clock = re.fullmatch(
+                r"\s*(\d{1,2}):(\d{2})\s*([AP]M)\s*", clock, re.I,
+            )
+            if not parsed_clock:
+                continue
+            hour = int(parsed_clock.group(1)) % 12
+            if parsed_clock.group(3).upper() == "PM":
+                hour += 12
+            minute = hour * 60 + int(parsed_clock.group(2))
+            if previous is not None:
+                while minute < previous:
+                    minute += 1440
+            previous = minute
+            for stop_id in re.findall(
+                r"stop\.action\?id=([^\"&]+)", stop_list, flags=re.I,
+            ):
+                result[stop_id] = minute
+
+        if len(result) < 2:
+            raise IncompleteSchedule(
+                f"La vista web de {expected_trip_id} no contiene un recorrido válido"
+            )
+        return result
+
+    def snapshot_from_trip_pages(
+        self,
+        route: dict[str, Any],
+        direction: dict[str, Any],
+        source_date: dt.date,
+        trip_ids: list[str],
+    ) -> ScheduleSnapshot:
+        """Fallback oficial para IDs ya conocidos cuando el JSON devuelve 401.
+
+        Esta vía puede refrescar los horarios de viajes existentes, pero no
+        descubre altas ni bajas de formaciones. Si un viaje deja de publicarse,
+        falla de forma conservadora y el XLSX anterior se preserva.
+        """
+        rows: list[tuple[str, list[int | None]]] = []
+        for trip_id in trip_ids:
+            page = self.http.request_text(
+                f"{CUANDO_SUBO_WEB_URL}/trip.action?"
+                f"{urllib.parse.urlencode({'id': trip_id})}"
+            )
+            stop_times = self.trip_page_times(page, trip_id)
+            row = [
+                stop_times.get(str(station.get("stop_id") or ""))
+                for station in direction["stations"]
+            ]
+            if row[0] is None or row[-1] is None:
+                raise IncompleteSchedule(
+                    f"{trip_id} no confirma ambas cabeceras de {direction['route_id']}"
+                )
+            rows.append((trip_id, row))
+
+        rows.sort(key=lambda pair: pair[1][0] or 0)
         snapshot = ScheduleSnapshot(
             stations=[station["name"] for station in direction["stations"]],
             formations=[trip_id for trip_id, _ in rows],
@@ -888,7 +1011,27 @@ def update_target(
 ) -> tuple[str, str, Path]:
     source_date = next_weekday(today, weekday)
     output = PROJECT_ROOT / route["folder"] / f"{day}{direction['file_suffix']}.xlsx"
-    snapshot = provider.snapshot(route, direction, source_date)
+    try:
+        snapshot = provider.snapshot(route, direction, source_date)
+    except SourceUnavailable as primary_error:
+        if not isinstance(provider, CuandoSuboProvider) or not output.exists():
+            raise
+        parsed_existing = validate_generated_workbook(output)
+        trip_ids = [
+            str(formation["original"])
+            for formation in parsed_existing["formations"]
+        ]
+        if not trip_ids:
+            raise primary_error
+        try:
+            snapshot = provider.snapshot_from_trip_pages(
+                route, direction, source_date, trip_ids,
+            )
+        except SourceUnavailable as fallback_error:
+            raise SourceUnavailable(
+                f"JSON no disponible ({primary_error}); vista web no utilizable "
+                f"({fallback_error})"
+            ) from fallback_error
 
     output.parent.mkdir(parents=True, exist_ok=True)
     candidate: Path | None = None

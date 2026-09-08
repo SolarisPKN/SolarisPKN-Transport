@@ -2,7 +2,7 @@
 
 🇺🇸 **English** | [🇦🇷 Español](LEGAL.es.md)
 
-Last reviewed: 2026-08-25
+Last reviewed: 2026-08-30
 
 This document records the provenance and intended limits of SolarisPKN-Transport. It is provided for transparency and risk reduction; it is not legal advice and does not replace review by a qualified Argentine lawyer or written authorization from a data provider.
 
@@ -55,7 +55,30 @@ The project:
 
 The SOFSE connector reproduces a compatibility authentication flow observed in a public client and obtains a temporary service token. Because the interface is authenticated and not documented as a public developer API, deployment without provider authorization remains a legal and contractual uncertainty. For the lowest-risk public deployment, obtain written permission or an official developer credential from SOFSE.
 
-The Cuándo SUBO connector uses the public client key `web` and no personal credential. Its availability does not establish a redistribution license. Written clarification from Nación Servicios is recommended before operating a public mirror or commercial service.
+The Cuándo SUBO connector uses the public client key `web` and no personal credential. When that JSON interface is unavailable, the fallback reads only public web pages for already identified trips, at daily frequency, without attempting to bypass the rejected endpoint. Availability does not establish a redistribution license. Written clarification from Nación Servicios is recommended before operating a public mirror or commercial service.
+
+## Live positions and estimates
+
+The reusable live-position contract is a technical interoperability format, not a grant of access,
+redistribution rights, or permission to operate a public tracking service. Deployers remain responsible
+for the current terms, authorization, rate limits, attribution, retention rules, and applicable law of
+every provider.
+
+Provider-reported coordinates and SolarisPKN-generated estimates are deliberately distinguished. An
+estimated position is an inference or modification by the downstream implementation and must not be
+described as GPS, as provider-reported, or as guaranteed accurate. A scheduled time is not a live
+position. An active service without coordinates is represented without a map marker.
+
+The repository contains only sanitized fictional live-position fixtures. It does not publish raw provider
+responses, current vehicle telemetry, provider API secrets, account or bucket identifiers, signed URLs,
+identity data, user locations, or protected local secret material. The examples use generic injected
+adapters and blank environment-variable values. Operational snapshots should be short-lived, minimized to
+public-transport service needs, and kept out of Git history and the timetable database.
+
+Public vehicle or service identifiers can still be provider-controlled data and can change. Do not combine
+them with passenger, driver, employee, payment, device, or personal-location records. A provider refusing
+access or returning an unsafe payload must result in bounded stale retention or timetable-only fallback,
+not an attempt to bypass its controls.
 
 ## Privacy
 

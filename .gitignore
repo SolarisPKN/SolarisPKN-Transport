@@ -2,6 +2,8 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .solaris-xlsx-*/
+.codex/
+.codex-tmp/
 
 # Paquetes móviles y resultados de ingeniería de compatibilidad de terceros.
 # No deben copiarse, redistribuirse ni versionarse en este repositorio.

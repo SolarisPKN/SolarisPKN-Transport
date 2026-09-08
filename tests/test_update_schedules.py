@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import datetime as dt
+import json
 import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import Mock
+
+from openpyxl import load_workbook
 
 from procesar_horarios import (
     parse_file,
@@ -50,6 +53,143 @@ DIRECTION = {
 
 
 class UpdateSchedulesTests(unittest.TestCase):
+    def test_136_rapido_keeps_the_complete_station_landmark_contract(self):
+        config_path = Path(__file__).parents[1] / "config" / "schedule_sources.json"
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+        route = next(
+            item for item in config["routes"]
+            if item["id"] == "colectivo-136-rapido"
+        )
+        expected_to_navarro = [
+            "Primera Junta",
+            "Caballito",
+            "Flores",
+            "Floresta",
+            "Villa Luro",
+            "Liniers",
+            "Ciudadela",
+            "Ramos Mejía",
+            "Haedo",
+            "Morón",
+            "Castelar",
+            "Ituzaingó",
+            "San Antonio de Padua",
+            "Merlo",
+            "Km 34,5",
+            "Agustín Ferrari",
+            "Mariano Acosta",
+            "Maquinista Ricardo Cal",
+            "Marcos Paz",
+            "Zamudio",
+            "General Hornos",
+            "General Las Heras",
+            "Navarro",
+        ]
+        self.assertEqual(len(expected_to_navarro), 23)
+        self.assertEqual(
+            [station["name"] for station in route["directions"][0]["stations"]],
+            expected_to_navarro,
+        )
+        self.assertEqual(
+            [station["name"] for station in route["directions"][1]["stations"]],
+            list(reversed(expected_to_navarro)),
+        )
+        for direction in route["directions"]:
+            for station in direction["stations"]:
+                self.assertIn("mapping_status", station)
+                self.assertIn("stop_name", station)
+        gaps = [
+            station["name"]
+            for station in route["directions"][1]["stations"]
+            if station["mapping_status"] == "provider_route_gap"
+        ]
+        self.assertEqual(gaps, ["General Hornos", "Zamudio"])
+        self.assertTrue(all(
+            station["stop_id"]
+            for station in route["directions"][0]["stations"]
+        ))
+
+    def test_cuando_subo_trip_page_parser_keeps_grouped_times_and_midnight(self):
+        page = """
+        <div class="tripPanelHeaderTripId">Trip # 739_test-1</div>
+        <div class="TripPage-ArrivalTime">11:58 PM</div>
+        <ul class="buttons">
+          <li><a href="stop.action?id=origen">Origen</a></li>
+          <li><a href="stop.action?id=intermedia">Intermedia</a></li>
+        </ul>
+        <div class="TripPage-ArrivalTime">12:07 AM</div>
+        <ul class="buttons"><li><a href="stop.action?id=destino">Destino</a></li></ul>
+        """
+        self.assertEqual(
+            CuandoSuboProvider.trip_page_times(page, "739_test-1"),
+            {"origen": 1438, "intermedia": 1438, "destino": 1447},
+        )
+
+    def test_cuando_subo_trip_page_snapshot_preserves_provider_gaps(self):
+        provider = CuandoSuboProvider(Mock())
+        provider.http.request_text.return_value = """
+        <div>Trip # 739_trip-1</div>
+        <div class="TripPage-ArrivalTime">6:00 AM</div>
+        <ul class="buttons"><li><a href="stop.action?id=origen">Origen</a></li></ul>
+        <div class="TripPage-ArrivalTime">7:00 AM</div>
+        <ul class="buttons"><li><a href="stop.action?id=destino">Destino</a></li></ul>
+        """
+        direction = {
+            "route_id": "739_671",
+            "stations": [
+                {"name": "Origen", "stop_id": "origen"},
+                {"name": "Sin parada publicada", "stop_id": None},
+                {"name": "Destino", "stop_id": "destino"},
+            ],
+        }
+        snapshot = provider.snapshot_from_trip_pages(
+            ROUTE, direction, dt.date(2026, 8, 25), ["739_trip-1"],
+        )
+        self.assertEqual(snapshot.matrix, [[360, None, 420]])
+
+    def test_cuando_subo_preserves_unmapped_station_as_null(self):
+        source_date = dt.date(2026, 8, 25)
+        timestamps = [
+            int(dt.datetime(2026, 8, 25, hour, tzinfo=dt.timezone(
+                dt.timedelta(hours=-3)
+            )).timestamp() * 1000)
+            for hour in (6, 8)
+        ]
+
+        def response(timestamp):
+            return {
+                "data": {"entry": {"stopRouteSchedules": [{
+                    "routeId": "739_670",
+                    "stopRouteDirectionSchedules": [{
+                        "scheduleStopTimes": [{
+                            "tripId": "739_trip-1",
+                            "departureEnabled": True,
+                            "departureTime": timestamp,
+                        }],
+                    }],
+                }]}},
+            }
+
+        provider = CuandoSuboProvider(Mock())
+        provider.schedule_for_stop = Mock(
+            side_effect=[response(timestamps[0]), response(timestamps[1])]
+        )
+        direction = {
+            "route_id": "739_670",
+            "stations": [
+                {"name": "Origen", "stop_id": "origen"},
+                {"name": "Estación sin ID", "stop_id": None},
+                {"name": "Destino", "stop_id": "destino"},
+            ],
+        }
+        snapshot = provider.snapshot(ROUTE, direction, source_date)
+
+        self.assertEqual(snapshot.stations, [
+            "Origen", "Estación sin ID", "Destino",
+        ])
+        self.assertEqual(snapshot.matrix, [[360, None, 480]])
+        self.assertEqual(provider.schedule_for_stop.call_count, 2)
+
     def test_ramales_workbook_is_the_source_of_enabled_routes(self):
         selections = load_branch_selections(DEFAULT_BRANCHES)
         self.assertTrue(
@@ -163,6 +303,25 @@ class UpdateSchedulesTests(unittest.TestCase):
                 connection.close()
             self.assertEqual(minutes, [1420, 1445])
             self.assertEqual(method, "API")
+
+    def test_estimated_provenance_is_accepted_explicitly(self):
+        snapshot = ScheduleSnapshot(
+            stations=["Origen", "Destino"],
+            formations=["E1"],
+            matrix=[[360, 420]],
+            source_date=dt.date(2026, 8, 31),
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            workbook_path = Path(directory) / "estimado.xlsx"
+            create_workbook(workbook_path, ROUTE, DIRECTION, "Laboral", snapshot)
+            workbook = load_workbook(workbook_path)
+            try:
+                workbook.active["A24"] = "Estimado"
+                workbook.save(workbook_path)
+            finally:
+                workbook.close()
+            parsed = parse_file(workbook_path)
+            self.assertEqual(parsed["metodo_actualizacion"], "Estimado")
 
     def test_source_failure_does_not_touch_existing_workbook(self):
         provider = Mock()

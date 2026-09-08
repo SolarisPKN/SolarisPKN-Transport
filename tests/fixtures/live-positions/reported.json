@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-30T12:00:00.000Z",
+  "expiresAt": "2026-08-30T12:02:00.000Z",
+  "discardAfter": "2026-08-30T12:10:00.000Z",
+  "status": "ok",
+  "sources": [
+    {
+      "id": "provider-a",
+      "status": "ok",
+      "lastAttemptAt": "2026-08-30T12:00:00.000Z",
+      "lastSuccessfulAt": "2026-08-30T12:00:00.000Z",
+      "vehicleCount": 1,
+      "errorCode": null
+    }
+  ],
+  "vehicles": [
+    {
+      "id": "bus:provider-a:vehicle-17",
+      "mode": "bus",
+      "provider": "provider-a",
+      "operator": "Example Transit",
+      "routeId": "route-12-outbound",
+      "tripId": "trip-20260830-17",
+      "direction": "North Terminal",
+      "label": "Route 12",
+      "status": "active",
+      "positionKind": "reported",
+      "position": {
+        "lat": -34.7012,
+        "lon": -58.8123,
+        "bearing": 84,
+        "accuracyMeters": 18
+      },
+      "observedAt": "2026-08-30T11:59:42.000Z",
+      "receivedAt": "2026-08-30T12:00:00.000Z",
+      "dataStatus": "fresh",
+      "source": {
+        "id": "provider-a",
+        "recordId": "vehicle-17"
+      }
+    }
+  ],
+  "fallback": {
+    "mode": "none",
+    "reason": null,
+    "timetableRef": null
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "name": "@solarispkn/transport-live-observers",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Observadores locales y sanitizados de transporte publico para SolarisPKN-Transport.",
+  "engines": { "node": ">=22.12.0" },
+  "scripts": {
+    "start:cuando-subo": "node src/cli.mjs cuando-subo",
+    "once:cuando-subo": "node src/cli.mjs cuando-subo --once",
+    "check": "node --check src/config.mjs && node --check src/contract.mjs && node --check src/cuando-subo.mjs && node --check src/html.mjs && node --check src/publisher.mjs && node --check src/cli.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "validate": "npm run check && npm run test"
+  }
+}
