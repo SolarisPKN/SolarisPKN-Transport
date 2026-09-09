@@ -7,12 +7,12 @@ on:
   workflow_dispatch:
     inputs:
       force_rebuild:
-        description: Reconstruir horarios.db aunque los XLSX no hayan cambiado
+        description: Reconstruir horarios.db y horarios.csv aunque no cambien los XLSX
         required: false
         default: false
         type: boolean
       force_catalog:
-        description: Forzar el refresco completo de Lista de ramales
+        description: Forzar el refresco de los catálogos SOFSE y SUBE
         required: false
         default: false
         type: boolean
@@ -27,7 +27,7 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     env:
       TZ: America/Argentina/Buenos_Aires
 
@@ -50,43 +50,109 @@ jobs:
       - name: Probar conector SOFSE para la web
         run: node --test scripts/sofse_api.test.mjs
 
-      - name: Refrescar catálogo de ramales si venció
+      - name: Restaurar caché GTFS
+        uses: actions/cache@v4
+        with:
+          path: .cache/gtfs
+          key: gtfs-${{ runner.os }}-${{ hashFiles('config/pipeline.json') }}
+
+      - name: Ejecutar conector SOFSE
+        id: sofse
+        continue-on-error: true
         shell: bash
         env:
           FORCE_CATALOG: ${{ inputs.force_catalog || 'false' }}
         run: |
+          args=(--stage connector --connector sofse --report .pipeline/sofse.json)
           if [ "$FORCE_CATALOG" = "true" ]; then
-            python scripts/update_route_catalog.py --force
-          else
-            python scripts/update_route_catalog.py
+            args+=(--force-catalog)
           fi
+          python scripts/run_pipeline.py "${args[@]}"
 
-      - name: Leer ramales.xlsx y actualizar cronogramas seguros
-        run: python scripts/update_schedules.py
+      - name: Descartar actualización SOFSE incompleta
+        if: steps.sofse.outcome == 'failure'
+        run: |
+          git restore -- Horarios/Trenes
+          git clean -fd -- Horarios/Trenes
 
-      - name: Decidir si debe reconstruirse SQLite
+      - name: Ejecutar conector Cuándo SUBO
+        id: sube
+        continue-on-error: true
+        shell: bash
+        env:
+          FORCE_CATALOG: ${{ inputs.force_catalog || 'false' }}
+        run: |
+          args=(--stage connector --connector cuando_subo --report .pipeline/cuando-subo.json)
+          if [ "$FORCE_CATALOG" = "true" ]; then
+            args+=(--force-catalog)
+          fi
+          python scripts/run_pipeline.py "${args[@]}"
+
+      - name: Descartar actualización SUBE incompleta
+        if: steps.sube.outcome == 'failure'
+        run: |
+          git restore -- Horarios/Colectivos
+          git clean -fd -- Horarios/Colectivos
+
+      - name: Crear sólo XLSX ausentes mediante fallback GTFS
+        id: gtfs
+        if: always()
+        continue-on-error: true
+        run: >-
+          python scripts/run_pipeline.py
+          --stage fallback
+          --report .pipeline/gtfs.json
+
+      - name: Resumir estado de conectores
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Pipeline de cronogramas"
+            echo ""
+            echo "| Etapa | Resultado |"
+            echo "| --- | --- |"
+            echo "| SOFSE | ${{ steps.sofse.outcome }} |"
+            echo "| SUBE / Cuándo SUBO | ${{ steps.sube.outcome }} |"
+            echo "| GTFS sólo para XLSX ausentes | ${{ steps.gtfs.outcome }} |"
+            echo ""
+            echo "Las fuentes vivas se ejecutan de forma independiente. GTFS jamás sobrescribe un XLSX existente."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Decidir si deben reconstruirse las salidas
         id: changes
+        if: always()
         shell: bash
         env:
           FORCE_REBUILD: ${{ inputs.force_rebuild || 'false' }}
         run: |
-          if [ -n "$(git status --porcelain -- Horarios)" ] || [ ! -f horarios.db ] || [ "$FORCE_REBUILD" = "true" ]; then
+          if [ -n "$(git status --porcelain -- Horarios)" ] || [ ! -f horarios.db ] || [ ! -f 'BD CSV/horarios.csv' ] || [ "$FORCE_REBUILD" = "true" ]; then
             echo "rebuild=true" >> "$GITHUB_OUTPUT"
           else
             echo "rebuild=false" >> "$GITHUB_OUTPUT"
-            echo "Los XLSX no cambiaron; se conserva la base existente." >> "$GITHUB_STEP_SUMMARY"
+            echo "Los XLSX no cambiaron; se conservan SQLite y CSV existentes." >> "$GITHUB_STEP_SUMMARY"
           fi
 
-      - name: Reconstruir y validar SQLite
+      - name: Reconstruir y validar SQLite y CSV
         if: steps.changes.outputs.rebuild == 'true'
-        run: python procesar_horarios.py --rebuild --strict
+        run: >-
+          python scripts/run_pipeline.py
+          --stage outputs
+          --report .pipeline/outputs.json
+
+      - name: Verificar que exista al menos una salida utilizable
+        if: always()
+        shell: bash
+        run: |
+          test -s horarios.db
+          test -s 'BD CSV/horarios.csv'
 
       - name: Commit y push si hay cambios
         shell: bash
         run: |
           git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add ramales.xlsx Horarios horarios.db
+          git add ramales.xlsx Horarios horarios.db 'BD CSV/horarios.csv'
           if git diff --staged --quiet; then
             echo "No hubo cambios publicables." >> "$GITHUB_STEP_SUMMARY"
             exit 0

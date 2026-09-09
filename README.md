@@ -1,6 +1,6 @@
 # 🚆 SolarisPKN-Transport
 
-> A resilient transport timetable pipeline for Argentine trains and buses: provider timetable data in, auditable XLSX and query-ready SQLite out.
+> A resilient transport timetable pipeline for Argentine trains and buses: provider timetable data in, auditable XLSX, query-ready SQLite, and one consolidated CSV out.
 
 🇺🇸 **English** | [🇦🇷 Español](README.es.md)
 
@@ -34,8 +34,10 @@ This is deliberately more than a scraper. It is a conservative data pipeline: in
 - **Safe replacement.** A workbook is replaced only after semantic validation and a successful parse through the same importer used for SQLite.
 - **Atomic persistence.** Candidate XLSX and database files are prepared and validated before replacing the trusted copy.
 - **Manual-data protection.** A failed or partial update leaves the previous file byte-for-byte intact.
-- **Daily automation.** GitHub Actions tests the connectors, refreshes schedules, rebuilds SQLite only when needed, and avoids empty commits.
-- **Traceable provenance.** Cell `A24` in every timetable identifies `API`, `Manual`, or `Estimado` data. The last value keeps published departures while marking reconstructed intermediate stop times as approximate.
+- **Modular connectors.** `config/pipeline.json` registers SOFSE, Cuándo SUBO, and GTFS without hard-coding providers into the orchestrator.
+- **Non-destructive GTFS fallback.** It only creates a missing XLSX; it never overwrites or fills cells inside an existing workbook.
+- **Daily automation.** GitHub Actions tests connectors independently, rebuilds SQLite/CSV only when needed, and avoids empty commits.
+- **Traceable provenance.** Cell `A24` in every timetable identifies `API`, `Manual`, `Estimado`, or `GTFS` data. The last value keeps published departures while marking reconstructed intermediate stop times as approximate.
 - **Bilingual documentation.** English and Spanish documentation follow the rest of the SolarisPKN ecosystem.
 
 ## Current routes
@@ -197,6 +199,10 @@ python scripts/update_route_catalog.py --force
 
 Without `--force`, the command keeps the existing catalog until it is older than seven days. Useful options include `--max-age-days`, `--branches`, `--output-json`, and `--verbose`.
 
+### Isolated provider execution
+
+The catalog and timetable updaters accept --provider sofse or --provider cuando_subo. Each provider keeps its own freshness date in ramales.xlsx. For timetable updates, --fail-on-connector-error opens the circuit breaker on network, authentication, rate-limit, or server failures: existing XLSX files are preserved, no further request is made to that source, and Actions receives a failing exit code.
+
 ### Preview and update schedules
 
 ```bash
@@ -228,21 +234,26 @@ Use `--db` or `--horarios-dir` to validate into temporary locations without touc
 
 `.github/workflows/update-schedules.yml` runs every day at **06:17 America/Argentina/Buenos_Aires** and can also be launched manually.
 
+SOFSE and SUBE/Cuándo SUBO run as independent stages loaded from `config/pipeline.json`. If a source fails, its requests stop, its incomplete folder update is discarded, and the other source continues. Trusted XLSX files can still rebuild outputs even when both remote sources are unavailable.
+
 The workflow:
 
-1. checks out the repository and installs pinned Python dependencies;
-2. runs Python tests and the Node.js SOFSE connector test;
-3. refreshes `Lista de ramales` only when expired or manually forced;
-4. reads `ramales.xlsx` and updates safe timetable candidates;
-5. rebuilds SQLite only when a timetable changed, the database is missing, or rebuilding was forced;
-6. commits `ramales.xlsx`, `Horarios/`, and `horarios.db` only if their contents changed.
+1. installs dependencies and runs all tests;
+2. runs SOFSE and Cuándo SUBO as isolated primary connectors;
+3. rolls back only the failed connector folder;
+4. runs GTFS only for completely absent XLSX targets;
+5. atomically rebuilds `horarios.db` and `BD CSV/horarios.csv` when needed;
+6. verifies that both outputs exist and contain data;
+7. publishes source status and commits only real changes.
+
+See [`docs/pipeline.md`](docs/pipeline.md) for the complete guide and [`ADR 0004`](docs/adr/0004-pipeline-modular-y-fallback-gtfs.md) for the architectural decision.
 
 Manual inputs:
 
 - `force_catalog`: bypass the seven-day catalog cache.
-- `force_rebuild`: rebuild `horarios.db` even when no XLSX changed.
+- `force_rebuild`: rebuild `horarios.db` and `BD CSV/horarios.csv` even when no XLSX changed.
 
-Concurrency is serialized and the job has a 30-minute timeout, preventing overlapping writers from racing over the same artifacts.
+Concurrency is serialized and the job has a 45-minute timeout, preventing overlapping writers from racing over the same artifacts.
 
 ## Repository structure
 
@@ -250,14 +261,19 @@ Concurrency is serialized and the job has a 30-minute timeout, preventing overla
 SolarisPKN-Transport/
 ├── .github/workflows/update-schedules.yml  # daily safe-update pipeline
 ├── config/
+│   ├── pipeline.json                     # connector registry and policy
 │   └── schedule_sources.json             # reviewed route overrides
 ├── docs/
 │   ├── adr/                              # architectural decisions
 │   └── research/                         # reproducible API research
+├── BD CSV/horarios.csv                    # consolidated tabular view
+├── connectors/                            # independent adapters
 ├── Horarios/
 │   ├── Trenes/                           # auditable train XLSX files
 │   └── Colectivos/                       # auditable bus XLSX files
 ├── scripts/
+│   ├── export_csv.py                     # writes the consolidated CSV
+│   ├── run_pipeline.py                   # staged orchestrator
 │   ├── update_route_catalog.py           # refreshes Lista de ramales
 │   ├── update_schedules.py               # discovers and updates routes
 │   └── sofse_api.mjs                     # web-facing SOFSE helper

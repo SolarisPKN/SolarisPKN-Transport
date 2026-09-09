@@ -33,6 +33,7 @@ try:
         JsonHttpClient,
         SofseProvider,
         SourceUnavailable,
+        load_branch_catalog,
         normalize_text,
     )
 except ImportError:
@@ -44,6 +45,7 @@ except ImportError:
         JsonHttpClient,
         SofseProvider,
         SourceUnavailable,
+        load_branch_catalog,
         normalize_text,
     )
 
@@ -58,6 +60,7 @@ CATALOG_HEADERS = [
 ]
 CATALOG_SHEET = "Lista de ramales"
 CATALOG_DATE_CELL = "I2"
+
 DEFAULT_MAX_AGE_DAYS = 7
 MAX_AGENCY_WORKERS = 3
 
@@ -209,37 +212,99 @@ def _train_catalog(http: JsonHttpClient) -> list[dict[str, str]]:
     return rows
 
 
-def build_catalog() -> list[dict[str, str]]:
-    http = JsonHttpClient()
-    rows = _train_catalog(http) + _bus_catalog(http)
-    rows.sort(key=lambda row: (
+def _sort_catalog(rows: list[dict[str, str]]) -> list[dict[str, str]]:
+    return sorted(rows, key=lambda row: (
         0 if row["Tipo"] == "Tren" else 1,
         normalize_text(row["Linea / ramal"]),
         normalize_text(row["Nombre API"]),
     ))
-    return rows
 
 
-def catalog_age_days(path: Path, today: dt.date) -> int | None:
+def build_catalog(provider: str | None = None) -> list[dict[str, str]]:
+    http = JsonHttpClient()
+    if provider == "sofse":
+        return _sort_catalog(_train_catalog(http))
+    if provider == "cuando_subo":
+        return _sort_catalog(_bus_catalog(http))
+    return _sort_catalog(_train_catalog(http) + _bus_catalog(http))
+
+
+def _row_provider(row: dict[str, str]) -> str | None:
+    provider = normalize_text(row.get("Proveedor"))
+    if provider == "sofse":
+        return "sofse"
+    if provider in {"cuando subo", "cuando_subo", "onebusaway"}:
+        return "cuando_subo"
+    return None
+
+
+def merge_provider_catalog(
+    existing: list[dict[str, str]],
+    replacement: list[dict[str, str]],
+    provider: str,
+) -> list[dict[str, str]]:
+    preserved = [row for row in existing if _row_provider(row) != provider]
+    return _sort_catalog(preserved + replacement)
+
+
+def catalog_update_dates(path: Path) -> dict[str, dt.date | None]:
+    result: dict[str, dt.date | None] = {
+        "sofse": None,
+        "cuando_subo": None,
+    }
     if not path.exists():
-        return None
+        return result
     workbook = load_workbook(path, read_only=True, data_only=True)
     try:
         if CATALOG_SHEET not in workbook.sheetnames:
-            return None
-        value = workbook[CATALOG_SHEET][CATALOG_DATE_CELL].value
-        if isinstance(value, dt.datetime):
-            value = value.date()
-        if isinstance(value, str):
-            value = dt.date.fromisoformat(value[:10])
-        return (today - value).days if isinstance(value, dt.date) else None
+            return result
+        sheet = workbook[CATALOG_SHEET]
+        values: dict[str, Any]
+        if sheet["I1"].value == "Proveedor" and sheet["J1"].value == "Actualizado":
+            values = {
+                str(sheet["I2"].value or ""): sheet["J2"].value,
+                str(sheet["I3"].value or ""): sheet["J3"].value,
+            }
+            raw_dates = {
+                "sofse": values.get("SOFSE"),
+                "cuando_subo": values.get("Cuando SUBO"),
+            }
+        else:
+            legacy = sheet[CATALOG_DATE_CELL].value
+            raw_dates = {"sofse": legacy, "cuando_subo": legacy}
+        for provider, value in raw_dates.items():
+            if isinstance(value, dt.datetime):
+                value = value.date()
+            if isinstance(value, str):
+                value = dt.date.fromisoformat(value[:10])
+            if isinstance(value, dt.date):
+                result[provider] = value
+        return result
     except (TypeError, ValueError):
-        return None
+        return result
     finally:
         workbook.close()
 
 
-def write_catalog(path: Path, rows: list[dict[str, str]], today: dt.date) -> None:
+def catalog_age_days(
+    path: Path,
+    today: dt.date,
+    provider: str | None = None,
+) -> int | None:
+    dates = catalog_update_dates(path)
+    if provider:
+        value = dates.get(provider)
+        return (today - value).days if value else None
+    known = [value for value in dates.values() if value]
+    return max((today - value).days for value in known) if known else None
+
+
+def write_catalog(
+    path: Path,
+    rows: list[dict[str, str]],
+    today: dt.date,
+    update_dates: dict[str, dt.date | None] | None = None,
+) -> None:
     workbook = load_workbook(path)
     try:
         if CATALOG_SHEET in workbook.sheetnames:
@@ -274,12 +339,19 @@ def write_catalog(path: Path, rows: list[dict[str, str]], today: dt.date) -> Non
             showColumnStripes=False,
         )
         sheet.add_table(table)
-        sheet["I1"] = "Actualizado"
-        sheet[CATALOG_DATE_CELL] = today
-        sheet[CATALOG_DATE_CELL].number_format = "yyyy-mm-dd"
-        sheet["I3"] = "Ramales"
-        sheet["I4"] = len(rows)
+        dates = update_dates or {"sofse": today, "cuando_subo": today}
+        sheet["I1"] = "Proveedor"
+        sheet["J1"] = "Actualizado"
+        sheet["I2"] = "SOFSE"
+        sheet["J2"] = dates.get("sofse")
+        sheet["I3"] = "Cuando SUBO"
+        sheet["J3"] = dates.get("cuando_subo")
+        sheet["I4"] = "Ramales"
+        sheet["J4"] = len(rows)
+        sheet["J2"].number_format = "yyyy-mm-dd"
+        sheet["J3"].number_format = "yyyy-mm-dd"
         sheet.column_dimensions["I"].width = 15
+        sheet.column_dimensions["J"].width = 15
 
         candidate: Path | None = None
         try:
@@ -290,7 +362,20 @@ def write_catalog(path: Path, rows: list[dict[str, str]], today: dt.date) -> Non
             workbook.save(candidate)
             check = load_workbook(candidate, read_only=True, data_only=True)
             try:
-                if CATALOG_SHEET not in check.sheetnames or check[CATALOG_SHEET].max_row != len(rows) + 1:
+                if CATALOG_SHEET not in check.sheetnames:
+                    raise RuntimeError("La verificación del catálogo XLSX falló")
+                checked_sheet = check[CATALOG_SHEET]
+                checked_rows = sum(
+                    1
+                    for values in checked_sheet.iter_rows(
+                        min_row=2,
+                        min_col=1,
+                        max_col=len(CATALOG_HEADERS),
+                        values_only=True,
+                    )
+                    if any(value not in (None, "") for value in values)
+                )
+                if checked_rows != len(rows):
                     raise RuntimeError("La verificación del catálogo XLSX falló")
             finally:
                 check.close()
@@ -308,6 +393,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--branches", type=Path, default=DEFAULT_BRANCHES)
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--max-age-days", type=int, default=DEFAULT_MAX_AGE_DAYS)
+    parser.add_argument(
+        "--provider",
+        choices=("sofse", "cuando_subo"),
+        help="Refresca sólo ese proveedor y conserva intactas las filas del otro.",
+    )
     parser.add_argument("--output-json", type=Path)
     parser.add_argument("--verbose", action="store_true")
     return parser.parse_args()
@@ -320,24 +410,47 @@ def main() -> int:
         format="%(asctime)s [%(levelname)s] %(message)s",
     )
     today = dt.datetime.now(ARGENTINA_TZ).date()
-    age = catalog_age_days(args.branches, today)
+    age = catalog_age_days(args.branches, today, args.provider)
     if not args.force and not args.output_json and age is not None and age < args.max_age_days:
-        logger.info("Catálogo vigente (%s días); no se consulta la API", age)
+        suffix = f" de {args.provider}" if args.provider else ""
+        logger.info("Catálogo%s vigente (%s días); no se consulta la API", suffix, age)
         return 0
 
-    rows = build_catalog()
+    try:
+        replacement = build_catalog(args.provider)
+    except SourceUnavailable as exc:
+        suffix = f" {args.provider}" if args.provider else ""
+        logger.error("Conector%s no disponible: %s", suffix, exc)
+        return 3
     if args.output_json:
         args.output_json.parent.mkdir(parents=True, exist_ok=True)
         args.output_json.write_text(
-            json.dumps(rows, ensure_ascii=False, indent=2), encoding="utf-8",
+            json.dumps(replacement, ensure_ascii=False, indent=2), encoding="utf-8",
         )
-        logger.info("Catálogo exportado a %s (%s ramales)", args.output_json, len(rows))
+        logger.info(
+            "Catálogo exportado a %s (%s ramales)",
+            args.output_json,
+            len(replacement),
+        )
         return 0
     if not args.branches.exists():
         logger.error("No existe %s; cree primero el configurador", args.branches)
         return 2
-    write_catalog(args.branches, rows, today)
-    logger.info("Catálogo actualizado: %s ramales", len(rows))
+
+    dates = catalog_update_dates(args.branches)
+    if args.provider:
+        rows = merge_provider_catalog(
+            load_branch_catalog(args.branches),
+            replacement,
+            args.provider,
+        )
+        dates[args.provider] = today
+    else:
+        rows = replacement
+        dates = {"sofse": today, "cuando_subo": today}
+    write_catalog(args.branches, rows, today, dates)
+    suffix = f" ({args.provider})" if args.provider else ""
+    logger.info("Catálogo actualizado%s: %s ramales", suffix, len(rows))
     return 0
 
 

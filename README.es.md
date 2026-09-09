@@ -1,6 +1,6 @@
 # 🚆 SolarisPKN-Transport
 
-> Un pipeline resistente de cronogramas para trenes y colectivos argentinos: entran datos publicados por proveedores y salen XLSX auditables y una base SQLite lista para consultar.
+> Un pipeline resistente de cronogramas para trenes y colectivos argentinos: entran datos publicados por proveedores y salen XLSX auditables, una base SQLite lista para consultar y un CSV consolidado.
 
 [🇺🇸 English](README.md) | 🇦🇷 **Español**
 
@@ -34,8 +34,10 @@ Esto es deliberadamente más que un scraper. Es un pipeline conservador de datos
 - **Reemplazo seguro.** Una planilla sólo se reemplaza después de validarla semánticamente y procesarla con el mismo importador que genera SQLite.
 - **Persistencia atómica.** Los XLSX y la base candidatos se preparan y validan antes de reemplazar la copia confiable.
 - **Protección del dato manual.** Una actualización fallida o parcial deja el archivo anterior byte por byte intacto.
-- **Automatización diaria.** GitHub Actions prueba los conectores, refresca cronogramas, reconstruye SQLite sólo cuando corresponde y evita commits vacíos.
-- **Procedencia visible.** La celda `A24` de cada cronograma indica si el método fue `API`, `Manual` o `Estimado`. Este último conserva salidas publicadas y marca como aproximados los pasos intermedios reconstruidos.
+- **Conectores modulares.** `config/pipeline.json` registra SOFSE, Cuándo SUBO y GTFS sin cablear proveedores dentro del orquestador.
+- **Fallback GTFS no destructivo.** Sólo crea un XLSX ausente; nunca pisa ni completa internamente una planilla existente.
+- **Automatización diaria.** GitHub Actions prueba cada conector de forma independiente, reconstruye SQLite/CSV sólo cuando corresponde y evita commits vacíos.
+- **Procedencia visible.** La celda `A24` de cada cronograma indica si el método fue `API`, `Manual`, `Estimado` o `GTFS`. Este último conserva salidas publicadas y marca como aproximados los pasos intermedios reconstruidos.
 - **Documentación bilingüe.** La documentación en inglés y español conserva el estilo del ecosistema SolarisPKN.
 
 ## Recorridos actuales
@@ -197,6 +199,10 @@ python scripts/update_route_catalog.py --force
 
 Sin `--force`, el comando conserva el catálogo existente hasta que supera los siete días. También admite `--max-age-days`, `--branches`, `--output-json` y `--verbose`.
 
+### Ejecución aislada por proveedor
+
+El catálogo y los cronogramas aceptan --provider sofse o --provider cuando_subo. Cada proveedor mantiene su propia fecha de vigencia en ramales.xlsx. En el actualizador de cronogramas, --fail-on-connector-error abre el cortacircuito ante errores de red, autenticación, límites o servidor: conserva los XLSX existentes, evita nuevas llamadas a esa fuente y devuelve un código no exitoso para Actions.
+
 ### Previsualizar y actualizar cronogramas
 
 ```bash
@@ -228,21 +234,26 @@ Usá `--db` o `--horarios-dir` para validar en ubicaciones temporales sin tocar 
 
 `.github/workflows/update-schedules.yml` se ejecuta todos los días a las **06:17 de America/Argentina/Buenos_Aires** y también se puede lanzar manualmente.
 
+SOFSE y SUBE/Cuándo SUBO se ejecutan como etapas independientes desde el registro de `config/pipeline.json`. Si una fuente falla, se detienen sus llamadas, se descarta cualquier actualización incompleta de su carpeta y la otra fuente continúa. Los XLSX confiables permiten reconstruir las salidas incluso si ambas fuentes remotas están caídas.
+
 El workflow:
 
-1. clona el repositorio e instala las dependencias Python fijadas;
-2. ejecuta las pruebas de Python y la prueba del conector SOFSE en Node.js;
-3. refresca `Lista de ramales` sólo si venció o se fuerza manualmente;
-4. lee `ramales.xlsx` y actualiza candidatos de cronograma seguros;
-5. reconstruye SQLite sólo si cambió una planilla, falta la base o se forzó la reconstrucción;
-6. commitea `ramales.xlsx`, `Horarios/` y `horarios.db` únicamente si cambió su contenido.
+1. instala dependencias y ejecuta todas las pruebas;
+2. ejecuta SOFSE y Cuándo SUBO como conectores primarios aislados;
+3. revierte únicamente la carpeta del conector que haya fallado;
+4. ejecuta GTFS sólo para objetivos XLSX completamente ausentes;
+5. reconstruye atómicamente `horarios.db` y `BD CSV/horarios.csv` cuando corresponde;
+6. verifica que ambas salidas existan y tengan contenido;
+7. publica la tabla de estados y commitea únicamente cambios reales.
+
+La guía completa está en [`docs/pipeline.es.md`](docs/pipeline.es.md) y la decisión arquitectónica en [`ADR 0004`](docs/adr/0004-pipeline-modular-y-fallback-gtfs.md).
 
 Entradas manuales:
 
 - `force_catalog`: ignora la caché de siete días del catálogo.
-- `force_rebuild`: reconstruye `horarios.db` aunque ningún XLSX haya cambiado.
+- `force_rebuild`: reconstruye `horarios.db` y `BD CSV/horarios.csv` aunque ningún XLSX haya cambiado.
 
-La concurrencia está serializada y el job tiene un timeout de 30 minutos, evitando que dos escritores compitan sobre los mismos artefactos.
+La concurrencia está serializada y el job tiene un timeout de 45 minutos, evitando que dos escritores compitan sobre los mismos artefactos.
 
 ## Estructura del repositorio
 
@@ -250,14 +261,19 @@ La concurrencia está serializada y el job tiene un timeout de 30 minutos, evita
 SolarisPKN-Transport/
 ├── .github/workflows/update-schedules.yml  # pipeline diario seguro
 ├── config/
+│   ├── pipeline.json                     # registro de conectores y política
 │   └── schedule_sources.json             # overrides de ramales revisados
 ├── docs/
 │   ├── adr/                              # decisiones de arquitectura
 │   └── research/                         # investigación reproducible de APIs
+├── BD CSV/horarios.csv                    # vista tabular consolidada
+├── connectors/                            # adaptadores independientes
 ├── Horarios/
 │   ├── Trenes/                           # XLSX ferroviarios auditables
 │   └── Colectivos/                       # XLSX de colectivos auditables
 ├── scripts/
+│   ├── export_csv.py                     # genera el CSV consolidado
+│   ├── run_pipeline.py                   # orquestador por etapas
 │   ├── update_route_catalog.py           # refresca Lista de ramales
 │   ├── update_schedules.py               # descubre y actualiza recorridos
 │   └── sofse_api.mjs                     # helper SOFSE para la web

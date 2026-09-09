@@ -61,6 +61,10 @@ class SourceUnavailable(Exception):
     """La fuente remota no pudo producir un snapshot seguro."""
 
 
+class ConnectorUnavailable(SourceUnavailable):
+    """El conector remoto cayó y no deben intentarse más rutas del proveedor."""
+
+
 class IncompleteSchedule(SourceUnavailable):
     """La respuesta existe, pero no alcanza el umbral para reemplazar datos."""
 
@@ -313,7 +317,7 @@ class JsonHttpClient:
                 if attempt < HTTP_RETRIES:
                     time.sleep(0.5 * (attempt + 1))
 
-        raise SourceUnavailable(f"No se pudo consultar {url}: {last_error}")
+        raise ConnectorUnavailable(f"No se pudo consultar {url}: {last_error}")
 
     def request_text(self, url: str) -> str:
         """Consulta texto público sin intentar interpretarlo como JSON."""
@@ -336,7 +340,7 @@ class JsonHttpClient:
                 last_error = exc
                 if attempt < HTTP_RETRIES:
                     time.sleep(0.5 * (attempt + 1))
-        raise SourceUnavailable(f"No se pudo consultar {url}: {last_error}")
+        raise ConnectorUnavailable(f"No se pudo consultar {url}: {last_error}")
 
 
 def _replace_characters(value: str, replacements: dict[str, str]) -> str:
@@ -381,7 +385,7 @@ class SofseProvider:
             or response.get("access_token")
         )
         if not token:
-            raise SourceUnavailable("SOFSE no devolvio un token reconocible")
+            raise ConnectorUnavailable("SOFSE no devolvio un token reconocible")
         self.token = token
         self.token_date = now.date()
 
@@ -624,7 +628,12 @@ class CuandoSuboProvider:
             f"{CUANDO_SUBO_BASE_URL}/schedule-for-stop/{stop_id}.json?{query}"
         )
         if response.get("code") != 200:
-            raise SourceUnavailable(
+            error_type = (
+                ConnectorUnavailable
+                if response.get("code") in {401, 403, 408, 429, 500, 502, 503, 504}
+                else SourceUnavailable
+            )
+            raise error_type(
                 f"Cuándo SUBO respondio {response.get('code')}: {response.get('text')}"
             )
         self.cache[cache_key] = response
@@ -898,6 +907,8 @@ def create_workbook(
     direction: dict[str, Any],
     day: str,
     snapshot: ScheduleSnapshot,
+    *,
+    method: str = "API",
 ) -> None:
     workbook = Workbook()
     sheet = workbook.active
@@ -915,7 +926,7 @@ def create_workbook(
         (17, "Vigencia", snapshot.source_date),
         (19, "Website", route["website"]),
         (21, "Link", route["source_url"]),
-        (23, "Metodo", "API"),
+        (23, "Metodo", method),
     ]
     for row, label, value in metadata:
         sheet.cell(row=row, column=1, value=label)
@@ -1013,6 +1024,8 @@ def update_target(
     output = PROJECT_ROOT / route["folder"] / f"{day}{direction['file_suffix']}.xlsx"
     try:
         snapshot = provider.snapshot(route, direction, source_date)
+    except ConnectorUnavailable:
+        raise
     except SourceUnavailable as primary_error:
         if not isinstance(provider, CuandoSuboProvider) or not output.exists():
             raise
@@ -1027,6 +1040,8 @@ def update_target(
             snapshot = provider.snapshot_from_trip_pages(
                 route, direction, source_date, trip_ids,
             )
+        except ConnectorUnavailable:
+            raise
         except SourceUnavailable as fallback_error:
             raise SourceUnavailable(
                 f"JSON no disponible ({primary_error}); vista web no utilizable "
@@ -1085,6 +1100,7 @@ def resolve_requested_routes(
     branches_path: Path,
     providers: dict[str, Any],
     today: dt.date,
+    only_providers: set[str] | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
     selections = load_branch_selections(branches_path)
     catalog = load_branch_catalog(branches_path)
@@ -1095,6 +1111,9 @@ def resolve_requested_routes(
     discovery_date = next_weekday(today, int(config["days"].get("Laboral", 0)))
 
     for type_name, values in selections.items():
+        type_provider = "sofse" if type_name == "Tren" else "cuando_subo"
+        if only_providers and type_provider not in only_providers:
+            continue
         for selection in values:
             wanted = normalize_text(selection)
             route = next(
@@ -1150,6 +1169,7 @@ def run(
     today: dt.date | None = None,
     dry_run: bool = False,
     only_routes: set[str] | None = None,
+    only_providers: set[str] | None = None,
 ) -> dict[str, Any]:
     config = load_config(config_path)
     today = today or dt.datetime.now(ARGENTINA_TZ).date()
@@ -1159,8 +1179,21 @@ def run(
         "cuando_subo": CuandoSuboProvider(http),
     }
     routes, unresolved = resolve_requested_routes(
-        config, branches_path, providers, today,
+        config,
+        branches_path,
+        providers,
+        today,
+        only_providers,
     )
+    if only_providers:
+        routes = [route for route in routes if route.get("provider") in only_providers]
+        unresolved = [
+            item for item in unresolved
+            if (
+                (item.get("type") == "Tren" and "sofse" in only_providers)
+                or (item.get("type") == "Colectivo" and "cuando_subo" in only_providers)
+            )
+        ]
     summary: dict[str, Any] = {
         "updated": 0,
         "unchanged": 0,
@@ -1169,7 +1202,9 @@ def run(
         "unresolved": len(unresolved),
         "targets": [],
         "unresolved_routes": unresolved,
+        "connector_failures": {},
     }
+    stopped_providers: dict[str, str] = {}
 
     for route in routes:
         if only_routes and route["id"] not in only_routes:
@@ -1187,22 +1222,41 @@ def run(
                     PROJECT_ROOT / route["folder"]
                     / f"{day}{direction['file_suffix']}.xlsx"
                 )
-                try:
-                    status, message, output = update_target(
-                        provider,
-                        route,
-                        direction,
-                        day,
-                        int(config["days"][day]),
-                        today,
-                        dry_run=dry_run,
-                    )
-                except SourceUnavailable as exc:
+                provider_name = route["provider"]
+                if provider_name in stopped_providers:
                     status = "preserved"
-                    message = str(exc)
-                    logger.warning("PRESERVADO %s: %s", output, message)
+                    message = (
+                        f"Conector {provider_name} detenido durante esta ejecución: "
+                        f"{stopped_providers[provider_name]}"
+                    )
+                    logger.warning("OMITIDO %s: %s", output, message)
                 else:
-                    logger.info("%s %s: %s", status.upper(), output, message)
+                    try:
+                        status, message, output = update_target(
+                            provider,
+                            route,
+                            direction,
+                            day,
+                            int(config["days"][day]),
+                            today,
+                            dry_run=dry_run,
+                        )
+                    except ConnectorUnavailable as exc:
+                        status = "preserved"
+                        message = str(exc)
+                        stopped_providers[provider_name] = message
+                        summary["connector_failures"][provider_name] = message
+                        logger.error(
+                            "CONECTOR %s DETENIDO; se preservan sus demás destinos: %s",
+                            provider_name,
+                            message,
+                        )
+                    except SourceUnavailable as exc:
+                        status = "preserved"
+                        message = str(exc)
+                        logger.warning("PRESERVADO %s: %s", output, message)
+                    else:
+                        logger.info("%s %s: %s", status.upper(), output, message)
 
                 summary[status] += 1
                 summary["targets"].append({
@@ -1224,6 +1278,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--today", type=dt.date.fromisoformat)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--route", action="append", dest="routes")
+    parser.add_argument(
+        "--provider",
+        action="append",
+        dest="providers",
+        choices=("sofse", "cuando_subo"),
+        help="Procesa sólo el proveedor indicado; se puede repetir.",
+    )
+    parser.add_argument(
+        "--fail-on-connector-error",
+        action="store_true",
+        help="Devuelve código 3 si el conector seleccionado se detuvo.",
+    )
     parser.add_argument("--verbose", action="store_true")
     return parser.parse_args()
 
@@ -1242,11 +1308,14 @@ def main() -> int:
             today=args.today,
             dry_run=args.dry_run,
             only_routes=set(args.routes) if args.routes else None,
+            only_providers=set(args.providers) if args.providers else None,
         )
     except ConfigurationError as exc:
         logger.error("Configuracion invalida: %s", exc)
         return 2
     print(json.dumps(summary, ensure_ascii=False, indent=2))
+    if args.fail_on_connector_error and summary["connector_failures"]:
+        return 3
     return 0
 
 

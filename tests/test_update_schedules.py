@@ -6,16 +6,22 @@ import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
-from openpyxl import load_workbook
+from openpyxl import Workbook, load_workbook
 
 from procesar_horarios import (
     parse_file,
     parse_time_to_minutes,
     rebuild_database_atomic,
 )
+from scripts.update_route_catalog import (
+    catalog_update_dates,
+    merge_provider_catalog,
+    write_catalog,
+)
 from scripts.update_schedules import (
+    ConnectorUnavailable,
     CuandoSuboProvider,
     DEFAULT_BRANCHES,
     ScheduleSnapshot,
@@ -26,6 +32,7 @@ from scripts.update_schedules import (
     load_branch_catalog,
     load_branch_selections,
     next_weekday,
+    run,
     update_target,
     validate_snapshot,
 )
@@ -342,6 +349,169 @@ class UpdateSchedulesTests(unittest.TestCase):
                 )
             provider.snapshot.assert_called_once()
 
+
+    def test_catalog_merge_replaces_only_selected_provider(self):
+        existing = [
+            {
+                "Tipo": "Tren",
+                "Proveedor": "SOFSE",
+                "ID API": "old-train",
+                "Linea / ramal": "Viejo",
+                "Nombre API": "Viejo",
+            },
+            {
+                "Tipo": "Colectivo",
+                "Proveedor": "Cuando SUBO",
+                "ID API": "bus",
+                "Linea / ramal": "322",
+                "Nombre API": "322",
+            },
+        ]
+        replacement = [
+            {
+                "Tipo": "Tren",
+                "Proveedor": "SOFSE",
+                "ID API": "new-train",
+                "Linea / ramal": "Nuevo",
+                "Nombre API": "Nuevo",
+            },
+        ]
+
+        merged = merge_provider_catalog(existing, replacement, "sofse")
+
+        self.assertEqual(
+            {row["ID API"] for row in merged},
+            {"new-train", "bus"},
+        )
+
+    def test_catalog_tracks_freshness_per_provider(self):
+        sofse_date = dt.date(2026, 9, 8)
+        sube_date = dt.date(2026, 8, 25)
+        rows = [
+            {
+                "Tipo": "Tren",
+                "Proveedor": "SOFSE",
+                "ID API": "67",
+                "Linea / ramal": "Belgrano Sur",
+                "Nombre API": "Catán - Lozano",
+                "Empresa / agencia": "Trenes Argentinos",
+                "Descripcion": "Catán - Lozano",
+            },
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            workbook_path = Path(directory) / "ramales.xlsx"
+            workbook = Workbook()
+            workbook.save(workbook_path)
+            workbook.close()
+
+            write_catalog(
+                workbook_path,
+                rows,
+                sofse_date,
+                {"sofse": sofse_date, "cuando_subo": sube_date},
+            )
+            dates = catalog_update_dates(workbook_path)
+
+        self.assertEqual(dates["sofse"], sofse_date)
+        self.assertEqual(dates["cuando_subo"], sube_date)
+
+    def test_cuando_subo_auth_failure_opens_connector_circuit(self):
+        http = Mock()
+        http.request.return_value = {"code": 401, "text": "Unauthorized"}
+        provider = CuandoSuboProvider(http)
+
+        with self.assertRaises(ConnectorUnavailable):
+            provider.schedule_for_stop("14_test", dt.date(2026, 9, 8))
+
+    def test_connector_failure_stops_remaining_targets_for_provider(self):
+        config = {
+            "version": 1,
+            "days": {"Laboral": 0},
+            "routes": [{"id": "placeholder"}],
+        }
+        route = {
+            **ROUTE,
+            "provider": "cuando_subo",
+            "days": ["Laboral"],
+            "directions": [
+                {**DIRECTION, "file_suffix": "Uno", "destination": "Uno"},
+                {**DIRECTION, "file_suffix": "Dos", "destination": "Dos"},
+            ],
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            config_path = Path(directory) / "sources.json"
+            config_path.write_text(json.dumps(config), encoding="utf-8")
+            with (
+                patch(
+                    "scripts.update_schedules.resolve_requested_routes",
+                    return_value=([route], []),
+                ),
+                patch(
+                    "scripts.update_schedules.update_target",
+                    side_effect=ConnectorUnavailable("401 controlado"),
+                ) as update,
+            ):
+                summary = run(
+                    config_path,
+                    branches_path=Path(directory) / "ramales.xlsx",
+                    today=dt.date(2026, 9, 8),
+                    only_providers={"cuando_subo"},
+                )
+
+        self.assertEqual(update.call_count, 1)
+        self.assertEqual(summary["preserved"], 2)
+        self.assertEqual(
+            summary["connector_failures"],
+            {"cuando_subo": "401 controlado"},
+        )
+
+    def test_provider_filter_does_not_process_the_other_source(self):
+        config = {
+            "version": 1,
+            "days": {"Laboral": 0},
+            "routes": [{"id": "placeholder"}],
+        }
+        sofse = {
+            **ROUTE,
+            "id": "tren",
+            "provider": "sofse",
+            "days": ["Laboral"],
+            "directions": [DIRECTION],
+        }
+        bus = {
+            **ROUTE,
+            "id": "colectivo",
+            "provider": "cuando_subo",
+            "days": ["Laboral"],
+            "directions": [DIRECTION],
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            config_path = Path(directory) / "sources.json"
+            config_path.write_text(json.dumps(config), encoding="utf-8")
+            with (
+                patch(
+                    "scripts.update_schedules.resolve_requested_routes",
+                    return_value=([sofse, bus], []),
+                ),
+                patch(
+                    "scripts.update_schedules.update_target",
+                    return_value=(
+                        "unchanged",
+                        "sin cambios",
+                        Path(__file__).parents[1] / "Horarios" / "prueba.xlsx",
+                    ),
+                ) as update,
+            ):
+                summary = run(
+                    config_path,
+                    branches_path=Path(directory) / "ramales.xlsx",
+                    today=dt.date(2026, 9, 8),
+                    only_providers={"sofse"},
+                )
+
+        self.assertEqual(update.call_count, 1)
+        self.assertEqual(summary["unchanged"], 1)
+        self.assertEqual(summary["targets"][0]["route"], "tren")
 
 if __name__ == "__main__":
     unittest.main()

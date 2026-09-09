@@ -25,3 +25,7 @@ research/apktool*/
 .env
 .env.*
 !.env.example
+
+# Caché y reportes efímeros del pipeline modular.
+.cache/gtfs/
+.pipeline/

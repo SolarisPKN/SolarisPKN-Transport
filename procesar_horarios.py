@@ -567,7 +567,7 @@ def parse_file(path: Path) -> dict:
             raise ScheduleImportError("Website vacío")
         if not pdf_url:
             raise ScheduleImportError("Link vacío")
-        if normalize_text(metodo_actualizacion) not in {"manual", "api", "estimado"}:
+        if normalize_text(metodo_actualizacion) not in {"manual", "api", "estimado", "gtfs"}:
             raise ScheduleImportError(
                 f"Método de actualización inválido: {metodo_actualizacion!r}"
             )

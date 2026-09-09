@@ -1,0 +1,106 @@
+{
+  "version": 1,
+  "inputs": {
+    "branches": "ramales.xlsx",
+    "schedules": "config/schedule_sources.json",
+    "xlsxRoot": "Horarios"
+  },
+  "outputs": {
+    "sqlite": "horarios.db",
+    "csv": "BD CSV/horarios.csv"
+  },
+  "policy": {
+    "preferPrimaryConnectors": true,
+    "continueAfterConnectorError": true,
+    "preserveExistingXlsx": true,
+    "gtfsOnlyWhenXlsxMissing": true,
+    "allowExpiredGtfsAsLastResort": true,
+    "rejectUnmappedGtfsRoutes": true
+  },
+  "connectors": [
+    {
+      "id": "sofse",
+      "module": "connectors.sofse",
+      "role": "primary",
+      "enabled": true,
+      "catalogMaxAgeDays": 7
+    },
+    {
+      "id": "cuando_subo",
+      "module": "connectors.cuando_subo",
+      "role": "primary",
+      "enabled": true,
+      "catalogMaxAgeDays": 7
+    },
+    {
+      "id": "gtfs",
+      "module": "connectors.gtfs",
+      "role": "fallback",
+      "enabled": true,
+      "cacheDir": ".cache/gtfs",
+      "feeds": [
+        {
+          "id": "trenes-amba",
+          "url": "https://data.buenosaires.gob.ar/dataset/trenes-gtfs/resource/f74dacd7-63df-4a56-80f5-b1f590c9199d/download",
+          "datasetUrl": "https://data.buenosaires.gob.ar/dataset/trenes-gtfs",
+          "license": "CC-BY-2.5-AR",
+          "freshness": "suspended-review"
+        },
+        {
+          "id": "colectivos-amba",
+          "url": "https://cdn.buenosaires.gob.ar/datosabiertos/datasets/transporte-y-obras-publicas/colectivos-gtfs/colectivos-gtfs.zip",
+          "datasetUrl": "https://data.buenosaires.gob.ar/dataset/colectivos-gtfs",
+          "license": "CC-BY-2.5-AR",
+          "freshness": "suspended-review"
+        }
+      ],
+      "mappings": {
+        "tren-catan-lozano": {
+          "feed": "trenes-amba",
+          "routeId": "67",
+          "directions": {
+            "Lozano": {
+              "directionId": "0",
+              "fallbackDestination": "20 de Junio"
+            },
+            "Catan": {
+              "directionId": "1",
+              "fallbackDestination": "González Catán"
+            }
+          }
+        },
+        "tren-merlo-lobos": {
+          "feed": "trenes-amba",
+          "routeId": "53",
+          "directions": {
+            "LasHeras": {
+              "directionId": "0",
+              "fallbackDestination": "Lobos"
+            },
+            "Merlo": {
+              "directionId": "1",
+              "fallbackDestination": "Merlo"
+            }
+          }
+        },
+        "colectivo-136-rapido": {
+          "feed": "colectivos-amba",
+          "routeShortName": "136A",
+          "routeDescriptionContains": "Navarro",
+          "directions": {
+            "Navarro": {
+              "directionId": "0",
+              "headsignContains": "Navarro",
+              "fallbackDestination": "Navarro"
+            },
+            "PrimeraJunta": {
+              "directionId": "1",
+              "headsignContains": "Junta",
+              "fallbackDestination": "Primera Junta"
+            }
+          }
+        }
+      }
+    }
+  ]
+}
