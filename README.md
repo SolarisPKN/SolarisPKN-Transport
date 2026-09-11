@@ -34,7 +34,7 @@ This is deliberately more than a scraper. It is a conservative data pipeline: in
 - **Safe replacement.** A workbook is replaced only after semantic validation and a successful parse through the same importer used for SQLite.
 - **Atomic persistence.** Candidate XLSX and database files are prepared and validated before replacing the trusted copy.
 - **Manual-data protection.** A failed or partial update leaves the previous file byte-for-byte intact.
-- **Modular connectors.** `config/pipeline.json` registers SOFSE, Cuándo SUBO, and GTFS without hard-coding providers into the orchestrator.
+- **Modular connectors.** `config/pipeline.json` registers SOFSE, Cuándo SUBO, curated public references, and GTFS without hard-coding providers into the orchestrator.
 - **Non-destructive GTFS fallback.** It only creates a missing XLSX; it never overwrites or fills cells inside an existing workbook.
 - **Daily automation.** GitHub Actions tests connectors independently, rebuilds SQLite/CSV only when needed, and avoids empty commits.
 - **Traceable provenance.** Cell `A24` in every timetable identifies `API`, `Manual`, `Estimado`, or `GTFS` data. The last value keeps published departures while marking reconstructed intermediate stop times as approximate.
@@ -234,7 +234,7 @@ Use `--db` or `--horarios-dir` to validate into temporary locations without touc
 
 `.github/workflows/update-schedules.yml` runs every day at **06:17 America/Argentina/Buenos_Aires** and can also be launched manually.
 
-SOFSE and SUBE/Cuándo SUBO run as independent stages loaded from `config/pipeline.json`. If a source fails, its requests stop, its incomplete folder update is discarded, and the other source continues. Trusted XLSX files can still rebuild outputs even when both remote sources are unavailable.
+SOFSE and SUBE/Cuándo SUBO run as independent stages loaded from `config/pipeline.json`. If a source fails, its requests stop, its incomplete folder update is discarded, and the other source continues. Curated public references then run without runtime scraping and never replace an equally recent or newer API grid. Trusted XLSX files can still rebuild outputs when remote sources are unavailable.
 
 The workflow:
 

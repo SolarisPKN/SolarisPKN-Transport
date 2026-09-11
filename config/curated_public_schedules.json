@@ -1,0 +1,146 @@
+{
+  "version": 1,
+  "checkedAt": "2026-09-11",
+  "policy": {
+    "runtimeScraping": false,
+    "provenance": "Horarios públicos transcritos con fecha y URL; no se infieren continuaciones no publicadas.",
+    "calendarProfiles": ["Lunes a Viernes", "Sábado", "Domingo", "Feriados", "No Laboral"]
+  },
+  "grids": [
+    {
+      "routeId": "colectivo-136-villars-mariano-acosta", "branch": "136 Villars", "company": "SARGENTO CABRAL S.A.DE TRANSPORTE",
+      "route": "136 E · Villars–Mariano Acosta", "day": "Laboral", "destination": "Mariano Acosta", "fileSuffix": "MarianoAcosta",
+      "path": "Horarios/Colectivos/136-Villars/LaboralMarianoAcosta.xlsx", "method": "Manual",
+      "website": "https://moovitapp.com/index/es-419/transporte_p%C3%BAblico-line-136-Buenos_Aires-1602-853157-115624289-18",
+      "sourceUrl": "https://moovitapp.com/index/es-419/transporte_p%C3%BAblico-time-136-Buenos_Aires-1602-853157-115624289-7857345-0",
+      "stations": ["Villars", "Escuela N° 8 Manuel Belgrano", "El Moro", "Marcos Paz", "Maquinista Ricardo Cal", "Mariano Acosta"],
+      "services": [{"name": "136 E · salida 23:15", "times": ["23:15", null, "23:32", "23:45", null, "24:10"]}]
+    },
+    {
+      "routeId": "colectivo-322-lujan", "branch": "322 Luján", "company": "LIBERTADOR SAN MARTIN SAT", "route": "Marcos Paz - Luján",
+      "day": "Laboral", "destination": "Luján", "fileSuffix": "Lujan", "path": "Horarios/Colectivos/322-Lujan/LaboralLujan.xlsx", "method": "Manual",
+      "website": "https://moovitapp.com/index/es-419/transporte_p%C3%BAblico-line-322-Buenos_Aires-1602-855399-579299-13", "sourceUrl": "https://moovitapp.com/index/es-419/transporte_p%C3%BAblico-time-322-Buenos_Aires-1602-855399-579299-6997957-0",
+      "stations": ["Marcos Paz", "General Las Heras", "Villars", "Plomer", "Luján"],
+      "services": [
+        {"name": "322 H · 05:15", "times": ["05:15", "05:56", "06:23", "06:45", "07:49"]},
+        {"name": "322 G · 09:54", "times": [null, "09:54", "10:24", "10:45", "11:43"]},
+        {"name": "322 H · 14:50", "times": ["14:50", "15:39", "16:12", "16:37", "17:45"]},
+        {"name": "322 G · 19:29", "times": [null, "19:29", "20:01", "20:21", "21:15"]}
+      ]
+    },
+    {
+      "routeId": "colectivo-322-lujan", "branch": "322 Luján", "company": "LIBERTADOR SAN MARTIN SAT", "route": "Marcos Paz - Luján",
+      "day": "Sabado", "destination": "Luján", "fileSuffix": "Lujan", "path": "Horarios/Colectivos/322-Lujan/SabadoLujan.xlsx", "method": "Manual",
+      "website": "https://moovitapp.com/index/es-419/transporte_p%C3%BAblico-line-322-Buenos_Aires-1602-855399-579299-13", "sourceUrl": "https://moovitapp.com/index/es-419/transporte_p%C3%BAblico-time-322-Buenos_Aires-1602-855399-579299-6997957-0",
+      "stations": ["Marcos Paz", "General Las Heras", "Villars", "Plomer", "Luján"],
+      "services": [
+        {"name": "322 H · 09:24", "times": ["09:24", "10:13", "10:42", "11:04", "12:02"]},
+        {"name": "322 H · 14:50", "times": ["14:50", "15:39", "16:12", "16:37", "17:45"]}
+      ]
+    },
+    {
+      "routeId": "colectivo-322-lujan", "branch": "322 Luján", "company": "LIBERTADOR SAN MARTIN SAT", "route": "Marcos Paz - Luján",
+      "day": "Domingo", "destination": "Luján", "fileSuffix": "Lujan", "path": "Horarios/Colectivos/322-Lujan/DomingoLujan.xlsx", "method": "Manual",
+      "website": "https://moovitapp.com/index/es-419/transporte_p%C3%BAblico-line-322-Buenos_Aires-1602-855399-579299-13", "sourceUrl": "https://moovitapp.com/index/es-419/transporte_p%C3%BAblico-time-322-Buenos_Aires-1602-855399-579299-6997957-0",
+      "stations": ["Marcos Paz", "General Las Heras", "Villars", "Plomer", "Luján"],
+      "services": [
+        {"name": "322 H · 09:24", "times": ["09:24", "10:13", "10:42", "11:04", "12:02"]},
+        {"name": "322 H · 14:50", "times": ["14:50", "15:39", "16:12", "16:37", "17:45"]}
+      ]
+    },
+    {
+      "routeId": "colectivo-322-lujan", "branch": "322 Luján", "company": "LIBERTADOR SAN MARTIN SAT", "route": "Marcos Paz - Luján",
+      "day": "Laboral", "destination": "Marcos Paz", "fileSuffix": "MarcosPaz", "path": "Horarios/Colectivos/322-Lujan/LaboralMarcosPaz.xlsx", "method": "Estimado",
+      "website": "https://moovitapp.com/index/es-419/transporte_p%C3%BAblico-line-322-Buenos_Aires-1602-855399-579299-14", "sourceUrl": "https://moovitapp.com/index/es-419/transporte_p%C3%BAblico-time-322-Buenos_Aires-1602-855399-579299-6997958-0",
+      "stations": ["Luján", "Plomer", "Villars", "General Las Heras", "Marcos Paz"],
+      "services": [
+        {"name": "322 G · 07:59", "times": ["07:59", null, null, "10:01", null]},
+        {"name": "322 H · 12:04", "times": ["12:04", "12:58", "13:21", null, "14:23"]},
+        {"name": "322 G · 17:34", "times": ["17:34", null, null, "19:36", null]},
+        {"name": "322 H · 21:39", "times": ["21:39", null, null, null, "23:58"]}
+      ]
+    },
+    {
+      "routeId": "colectivo-322-lujan", "branch": "322 Luján", "company": "LIBERTADOR SAN MARTIN SAT", "route": "Marcos Paz - Luján",
+      "day": "Sabado", "destination": "Marcos Paz", "fileSuffix": "MarcosPaz", "path": "Horarios/Colectivos/322-Lujan/SabadoMarcosPaz.xlsx", "method": "Estimado",
+      "website": "https://moovitapp.com/index/es-419/transporte_p%C3%BAblico-line-322-Buenos_Aires-1602-855399-579299-14", "sourceUrl": "https://moovitapp.com/index/es-419/transporte_p%C3%BAblico-time-322-Buenos_Aires-1602-855399-579299-6997958-0",
+      "stations": ["Luján", "Plomer", "Villars", "General Las Heras", "Marcos Paz"],
+      "services": [
+        {"name": "322 H · 12:04", "times": ["12:04", "12:58", "13:21", null, "14:23"]},
+        {"name": "322 G · 17:34", "times": ["17:34", "18:37", "19:03", "19:36", null]}
+      ]
+    },
+    {
+      "routeId": "colectivo-322-lujan", "branch": "322 Luján", "company": "LIBERTADOR SAN MARTIN SAT", "route": "Marcos Paz - Luján",
+      "day": "Domingo", "destination": "Marcos Paz", "fileSuffix": "MarcosPaz", "path": "Horarios/Colectivos/322-Lujan/DomingoMarcosPaz.xlsx", "method": "Estimado",
+      "website": "https://moovitapp.com/index/es-419/transporte_p%C3%BAblico-line-322-Buenos_Aires-1602-855399-579299-14", "sourceUrl": "https://moovitapp.com/index/es-419/transporte_p%C3%BAblico-time-322-Buenos_Aires-1602-855399-579299-6997958-0",
+      "stations": ["Luján", "Plomer", "Villars", "General Las Heras", "Marcos Paz"],
+      "services": [
+        {"name": "322 H · 12:04", "times": ["12:04", "12:58", "13:21", null, "14:23"]},
+        {"name": "322 G · 17:34", "times": ["17:34", "18:37", "19:03", "19:36", null]}
+      ]
+    },
+    {
+      "routeId": "colectivo-322-canuelas", "branch": "322 Cañuelas", "company": "LIBERTADOR SAN MARTIN SAT", "route": "Marcos Paz - Cañuelas",
+      "day": "Laboral", "destination": "Cañuelas", "fileSuffix": "Canuelas", "path": "Horarios/Colectivos/322-Canuelas/LaboralCanuelas.xlsx", "method": "Estimado",
+      "website": "https://moovitapp.com/index/es-419/transporte_p%C3%BAblico-line-322-Buenos_Aires-1602-855399-579299-11", "sourceUrl": "https://moovitapp.com/index/es-419/transporte_p%C3%BAblico-time-322-Buenos_Aires-1602-855399-579299-6997977-0",
+      "stations": ["Marcos Paz", "General Las Heras", "Cañuelas"],
+      "services": [
+        {"name": "322 E · 04:20", "times": ["04:20", "04:57", "06:20"]}, {"name": "322 D · 07:14", "times": [null, "07:14", "08:43"]},
+        {"name": "322 E · 12:20", "times": ["12:20", "13:03", "14:31"]}, {"name": "322 D · 15:14", "times": [null, "15:14", "16:43"]},
+        {"name": "322 D · 17:34", "times": [null, "17:34", "19:03"]}, {"name": "322 D · 19:54", "times": [null, "19:54", "21:23"]}
+      ]
+    },
+    {
+      "routeId": "colectivo-322-canuelas", "branch": "322 Cañuelas", "company": "LIBERTADOR SAN MARTIN SAT", "route": "Marcos Paz - Cañuelas",
+      "day": "Sabado", "destination": "Cañuelas", "fileSuffix": "Canuelas", "path": "Horarios/Colectivos/322-Canuelas/SabadoCanuelas.xlsx", "method": "Estimado",
+      "website": "https://moovitapp.com/index/es-419/transporte_p%C3%BAblico-line-322-Buenos_Aires-1602-855399-579299-11", "sourceUrl": "https://moovitapp.com/index/es-419/transporte_p%C3%BAblico-time-322-Buenos_Aires-1602-855399-579299-6997977-0",
+      "stations": ["Marcos Paz", "General Las Heras", "Cañuelas"],
+      "services": [
+        {"name": "322 E · 04:20", "times": ["04:20", "04:57", "06:20"]}, {"name": "322 D · 07:14", "times": [null, "07:14", "08:43"]},
+        {"name": "322 E · 12:20", "times": ["12:20", "13:03", "14:31"]}, {"name": "322 D · 15:14", "times": [null, "15:14", "16:43"]}
+      ]
+    },
+    {
+      "routeId": "colectivo-322-canuelas", "branch": "322 Cañuelas", "company": "LIBERTADOR SAN MARTIN SAT", "route": "Marcos Paz - Cañuelas",
+      "day": "Domingo", "destination": "Cañuelas", "fileSuffix": "Canuelas", "path": "Horarios/Colectivos/322-Canuelas/DomingoCanuelas.xlsx", "method": "Estimado",
+      "website": "https://moovitapp.com/index/es-419/transporte_p%C3%BAblico-line-322-Buenos_Aires-1602-855399-579299-11", "sourceUrl": "https://moovitapp.com/index/es-419/transporte_p%C3%BAblico-time-322-Buenos_Aires-1602-855399-579299-6997977-0",
+      "stations": ["Marcos Paz", "General Las Heras", "Cañuelas"],
+      "services": [
+        {"name": "322 E · 04:20", "times": ["04:20", "04:57", "06:20"]}, {"name": "322 D · 07:14", "times": [null, "07:14", "08:43"]},
+        {"name": "322 E · 12:20", "times": ["12:20", "13:03", "14:31"]}, {"name": "322 D · 15:14", "times": [null, "15:14", "16:43"]}
+      ]
+    },
+    {
+      "routeId": "colectivo-322-canuelas", "branch": "322 Cañuelas", "company": "LIBERTADOR SAN MARTIN SAT", "route": "Marcos Paz - Cañuelas",
+      "day": "Laboral", "destination": "Marcos Paz", "fileSuffix": "MarcosPaz", "path": "Horarios/Colectivos/322-Canuelas/LaboralMarcosPaz.xlsx", "method": "Estimado",
+      "website": "https://moovitapp.com/index/es-419/transporte_p%C3%BAblico-line-322-Buenos_Aires-1602-855399-579299-10", "sourceUrl": "https://moovitapp.com/index/es-419/transporte_p%C3%BAblico-time-322-Buenos_Aires-1602-855399-579299-6997976-0",
+      "stations": ["Cañuelas", "General Las Heras", "Marcos Paz"],
+      "services": [
+        {"name": "322 E · 04:20", "times": ["04:20", null, "06:16"]}, {"name": "322 D · 06:13", "times": ["06:13", "07:29", null]},
+        {"name": "322 E · 12:20", "times": ["12:20", null, "14:16"]}, {"name": "322 D · 14:13", "times": ["14:13", "15:33", null]},
+        {"name": "322 D · 16:33", "times": ["16:33", "18:01", null]}, {"name": "322 D · 18:53", "times": ["18:53", "20:17", null]}
+      ]
+    },
+    {
+      "routeId": "colectivo-322-canuelas", "branch": "322 Cañuelas", "company": "LIBERTADOR SAN MARTIN SAT", "route": "Marcos Paz - Cañuelas",
+      "day": "Sabado", "destination": "Marcos Paz", "fileSuffix": "MarcosPaz", "path": "Horarios/Colectivos/322-Canuelas/SabadoMarcosPaz.xlsx", "method": "Estimado",
+      "website": "https://moovitapp.com/index/es-419/transporte_p%C3%BAblico-line-322-Buenos_Aires-1602-855399-579299-10", "sourceUrl": "https://moovitapp.com/index/es-419/transporte_p%C3%BAblico-time-322-Buenos_Aires-1602-855399-579299-6997976-0",
+      "stations": ["Cañuelas", "General Las Heras", "Marcos Paz"],
+      "services": [
+        {"name": "322 E · 04:20", "times": ["04:20", null, "06:16"]}, {"name": "322 D · 06:13", "times": ["06:13", "07:29", null]},
+        {"name": "322 E · 12:20", "times": ["12:20", null, "14:16"]}, {"name": "322 D · 14:13", "times": ["14:13", "15:33", null]}
+      ]
+    },
+    {
+      "routeId": "colectivo-322-canuelas", "branch": "322 Cañuelas", "company": "LIBERTADOR SAN MARTIN SAT", "route": "Marcos Paz - Cañuelas",
+      "day": "Domingo", "destination": "Marcos Paz", "fileSuffix": "MarcosPaz", "path": "Horarios/Colectivos/322-Canuelas/DomingoMarcosPaz.xlsx", "method": "Estimado",
+      "website": "https://moovitapp.com/index/es-419/transporte_p%C3%BAblico-line-322-Buenos_Aires-1602-855399-579299-10", "sourceUrl": "https://moovitapp.com/index/es-419/transporte_p%C3%BAblico-time-322-Buenos_Aires-1602-855399-579299-6997976-0",
+      "stations": ["Cañuelas", "General Las Heras", "Marcos Paz"],
+      "services": [
+        {"name": "322 E · 04:20", "times": ["04:20", null, "06:16"]}, {"name": "322 D · 06:13", "times": ["06:13", "07:29", null]},
+        {"name": "322 E · 12:20", "times": ["12:20", null, "14:16"]}, {"name": "322 D · 14:13", "times": ["14:13", "15:33", null]}
+      ]
+    }
+  ]
+}

@@ -33,7 +33,7 @@ jobs:
 
     steps:
       - name: Clonar repositorio
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Configurar Python
         uses: actions/setup-python@v5
@@ -94,6 +94,15 @@ jobs:
           git restore -- Horarios/Colectivos
           git clean -fd -- Horarios/Colectivos
 
+      - name: Aplicar cronogramas públicos curados
+        id: curated
+        continue-on-error: true
+        run: >-
+          python scripts/run_pipeline.py
+          --stage connector
+          --connector curated_public
+          --report .pipeline/curated-public.json
+
       - name: Crear sólo XLSX ausentes mediante fallback GTFS
         id: gtfs
         if: always()
@@ -114,9 +123,10 @@ jobs:
             echo "| --- | --- |"
             echo "| SOFSE | ${{ steps.sofse.outcome }} |"
             echo "| SUBE / Cuándo SUBO | ${{ steps.sube.outcome }} |"
+            echo "| Referencias públicas curadas | ${{ steps.curated.outcome }} |"
             echo "| GTFS sólo para XLSX ausentes | ${{ steps.gtfs.outcome }} |"
             echo ""
-            echo "Las fuentes vivas se ejecutan de forma independiente. GTFS jamás sobrescribe un XLSX existente."
+            echo "Las fuentes vivas se ejecutan de forma independiente. Las referencias curadas preservan una grilla API igual o más nueva. GTFS jamás sobrescribe un XLSX existente."
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Decidir si deben reconstruirse las salidas

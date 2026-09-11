@@ -63,8 +63,11 @@ REQUIRED_METADATA = (
 DAY_MAP = {
     "laboral": "Lunes a Viernes",
     "nolaboral": "No Laboral",
+    "dia no laboral": "No Laboral",
+    "dias no laborables": "No Laboral",
     "sabado": "Sábado",
     "domingo": "Domingo",
+    "feriado": "Feriados",
     "feriados": "Feriados",
 }
 

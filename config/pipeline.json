@@ -33,6 +33,14 @@
       "catalogMaxAgeDays": 7
     },
     {
+      "id": "curated_public",
+      "module": "connectors.curated_public",
+      "role": "supplemental",
+      "enabled": true,
+      "manifest": "config/curated_public_schedules.json",
+      "preserveCurrentApi": true
+    },
+    {
       "id": "gtfs",
       "module": "connectors.gtfs",
       "role": "fallback",

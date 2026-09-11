@@ -7,7 +7,8 @@ The automation is configured in `config/pipeline.json` and runs through `scripts
 1. SOFSE attempts to refresh configured train timetables.
 2. Cuándo SUBO attempts to refresh configured bus timetables.
 3. Each failure remains contained in its connector; other connectors keep running.
-4. GTFS checks expected targets and runs only when an XLSX workbook is absent.
+4. `curated_public` applies versioned public references where no open connector exists, while preserving an API grid with an equal or newer validity date.
+5. GTFS checks expected targets and runs only when an XLSX workbook is absent.
 5. All valid XLSX workbooks are atomically imported into `horarios.db`.
 6. The same database is exported into one `BD CSV/horarios.csv` file.
 
@@ -16,6 +17,7 @@ If an XLSX already exists, GTFS does not open it, fill its empty cells, or repla
 ## Important files
 
 - `config/pipeline.json`: connector registry, policies, feeds, inputs, and outputs.
+- `config/curated_public_schedules.json`: transcribed matrices with source URL, verification date, and calendar profiles; it performs no runtime scraping.
 - `config/schedule_sources.json`: routes, directions, stations, and expected XLSX targets.
 - `connectors/sofse.py`: primary train adapter.
 - `connectors/cuando_subo.py`: primary bus adapter.
@@ -30,6 +32,7 @@ If an XLSX already exists, GTFS does not open it, fill its empty cells, or repla
 # Run one primary source
 python scripts/run_pipeline.py --stage connector --connector sofse
 python scripts/run_pipeline.py --stage connector --connector cuando_subo
+python scripts/run_pipeline.py --stage connector --connector curated_public
 
 # Inspect fallback decisions without writing
 python scripts/run_pipeline.py --stage fallback --dry-run
@@ -45,6 +48,8 @@ python scripts/run_pipeline.py --stage all
 ```
 
 Optional JSON reports use `--report path/report.json`. `.pipeline/` and `.cache/gtfs/` are ignored by Git.
+
+Workbooks support five canonical calendars: `Lunes a Viernes`, `Sábado`, `Domingo`, `Feriados`, and `No Laboral`. A holiday/non-working-day grid is created only from specific evidence; the Sunday schedule is never copied automatically.
 
 ## Adding a connector
 

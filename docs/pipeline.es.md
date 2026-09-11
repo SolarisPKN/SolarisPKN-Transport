@@ -7,7 +7,8 @@ La automatización se configura en `config/pipeline.json` y se ejecuta mediante 
 1. SOFSE intenta actualizar los trenes configurados.
 2. Cuándo SUBO intenta actualizar los colectivos configurados.
 3. Cada error queda limitado a su conector; los otros continúan.
-4. GTFS revisa los destinos esperados y actúa únicamente donde el XLSX no existe.
+4. `curated_public` aplica referencias públicas versionadas para servicios sin conector abierto, pero preserva cualquier grilla API de igual o mayor vigencia.
+5. GTFS revisa los destinos esperados y actúa únicamente donde el XLSX no existe.
 5. Los 55 XLSX válidos se importan atómicamente a `horarios.db`.
 6. La misma base se exporta a un único `BD CSV/horarios.csv`.
 
@@ -16,6 +17,7 @@ Si un XLSX ya existe, GTFS no lo abre, no rellena sus celdas vacías y no lo ree
 ## Archivos importantes
 
 - `config/pipeline.json`: registro, políticas, feeds, entradas y salidas.
+- `config/curated_public_schedules.json`: matrices transcritas con URL, fecha de comprobación y perfiles de calendario; no realiza scraping durante el workflow.
 - `config/schedule_sources.json`: recorridos, sentidos, estaciones y objetivos XLSX.
 - `connectors/sofse.py`: adaptador ferroviario primario.
 - `connectors/cuando_subo.py`: adaptador primario de colectivos.
@@ -30,6 +32,7 @@ Si un XLSX ya existe, GTFS no lo abre, no rellena sus celdas vacías y no lo ree
 # Ejecutar una fuente primaria
 python scripts/run_pipeline.py --stage connector --connector sofse
 python scripts/run_pipeline.py --stage connector --connector cuando_subo
+python scripts/run_pipeline.py --stage connector --connector curated_public
 
 # Comprobar el fallback sin escribir
 python scripts/run_pipeline.py --stage fallback --dry-run
@@ -45,6 +48,8 @@ python scripts/run_pipeline.py --stage all
 ```
 
 Los reportes JSON opcionales se generan con `--report ruta/reporte.json`. `.pipeline/` y `.cache/gtfs/` están ignorados por Git.
+
+Las grillas admiten cinco calendarios canónicos: `Lunes a Viernes`, `Sábado`, `Domingo`, `Feriados` y `No Laboral`. Sólo se crea una grilla de feriado o día no laborable cuando existe evidencia específica; nunca se copia automáticamente la frecuencia dominical.
 
 ## Agregar un conector
 

@@ -76,11 +76,12 @@ class PipelineTests(unittest.TestCase):
             "connectors": [
                 {"id": "sofse", "module": "connectors.sofse"},
                 {"id": "cuando_subo", "module": "connectors.cuando_subo"},
+                {"id": "curated_public", "module": "connectors.curated_public"},
                 {"id": "gtfs", "module": "connectors.gtfs"},
             ]
         }
         self.assertEqual(
-            set(load_connectors(config)), {"sofse", "cuando_subo", "gtfs"},
+            set(load_connectors(config)), {"sofse", "cuando_subo", "curated_public", "gtfs"},
         )
 
     def test_all_stage_continues_after_one_primary_connector_fails(self):

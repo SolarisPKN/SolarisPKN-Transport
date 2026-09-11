@@ -34,7 +34,7 @@ Esto es deliberadamente más que un scraper. Es un pipeline conservador de datos
 - **Reemplazo seguro.** Una planilla sólo se reemplaza después de validarla semánticamente y procesarla con el mismo importador que genera SQLite.
 - **Persistencia atómica.** Los XLSX y la base candidatos se preparan y validan antes de reemplazar la copia confiable.
 - **Protección del dato manual.** Una actualización fallida o parcial deja el archivo anterior byte por byte intacto.
-- **Conectores modulares.** `config/pipeline.json` registra SOFSE, Cuándo SUBO y GTFS sin cablear proveedores dentro del orquestador.
+- **Conectores modulares.** `config/pipeline.json` registra SOFSE, Cuándo SUBO, referencias públicas curadas y GTFS sin cablear proveedores dentro del orquestador.
 - **Fallback GTFS no destructivo.** Sólo crea un XLSX ausente; nunca pisa ni completa internamente una planilla existente.
 - **Automatización diaria.** GitHub Actions prueba cada conector de forma independiente, reconstruye SQLite/CSV sólo cuando corresponde y evita commits vacíos.
 - **Procedencia visible.** La celda `A24` de cada cronograma indica si el método fue `API`, `Manual`, `Estimado` o `GTFS`. Este último conserva salidas publicadas y marca como aproximados los pasos intermedios reconstruidos.
@@ -234,7 +234,7 @@ Usá `--db` o `--horarios-dir` para validar en ubicaciones temporales sin tocar 
 
 `.github/workflows/update-schedules.yml` se ejecuta todos los días a las **06:17 de America/Argentina/Buenos_Aires** y también se puede lanzar manualmente.
 
-SOFSE y SUBE/Cuándo SUBO se ejecutan como etapas independientes desde el registro de `config/pipeline.json`. Si una fuente falla, se detienen sus llamadas, se descarta cualquier actualización incompleta de su carpeta y la otra fuente continúa. Los XLSX confiables permiten reconstruir las salidas incluso si ambas fuentes remotas están caídas.
+SOFSE y SUBE/Cuándo SUBO se ejecutan como etapas independientes desde el registro de `config/pipeline.json`. Si una fuente falla, se detienen sus llamadas, se descarta cualquier actualización incompleta de su carpeta y la otra fuente continúa. Luego se aplican referencias públicas curadas, sin scraping en ejecución y sin reemplazar una grilla API igual o más nueva. Los XLSX confiables permiten reconstruir las salidas incluso si las fuentes remotas están caídas.
 
 El workflow:
 
