@@ -29,3 +29,12 @@ research/apktool*/
 # Caché y reportes efímeros del pipeline modular.
 .cache/gtfs/
 .pipeline/
+
+# Compilación local y credenciales temporales del Worker live.
+.live-build/
+.wrangler/
+node_modules/
+
+# Caché local de cartografía. El mapa provincial versionado pertenece al frontend Villars-Informa,
+# no al Worker ni al Registry de este repositorio.
+.cache/maps/

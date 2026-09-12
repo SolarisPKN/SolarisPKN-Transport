@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "live-state-v2.schema.json",
+  "title": "SolarisPKN Transport live state v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "updatedAt", "trains", "buses"],
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "updatedAt": { "type": "string", "format": "date-time" },
+    "trains": { "$ref": "#/$defs/group" },
+    "buses": { "$ref": "#/$defs/group" }
+  },
+  "$defs": {
+    "group": {
+      "type": "object",
+      "required": ["checkedAt", "status", "vehicles", "alerts"],
+      "properties": {
+        "checkedAt": { "type": ["string", "null"], "format": "date-time" },
+        "sourceTimestamp": { "type": ["string", "null"], "format": "date-time" },
+        "status": { "enum": ["ok", "degraded", "unavailable"] },
+        "vehicles": { "type": "array", "items": { "$ref": "#/$defs/vehicle" } },
+        "alerts": { "type": "array", "items": { "$ref": "#/$defs/alert" } },
+        "providers": { "type": "array" }
+      }
+    },
+    "vehicle": {
+      "type": "object",
+      "required": ["provider", "mode", "routeId", "phase", "status", "realtimeAvailable", "stale"],
+      "properties": {
+        "provider": { "type": "string" },
+        "mode": { "enum": ["train", "bus"] },
+        "routeId": { "type": "string" },
+        "branchId": { "type": "string" },
+        "branchName": { "type": "string" },
+        "tripId": { "type": "string" },
+        "vehicleId": { "type": "string" },
+        "serviceNumber": { "type": "string" },
+        "directionId": {},
+        "destination": { "type": "string" },
+        "lat": { "type": "number", "minimum": -90, "maximum": 90 },
+        "lon": { "type": "number", "minimum": -180, "maximum": 180 },
+        "observedAt": { "type": "string", "format": "date-time" },
+        "bearing": { "type": "number" },
+        "speedKmh": { "type": "number" },
+        "speedSource": { "enum": ["provider", "calculated"] },
+        "positionSource": { "enum": ["gps", "provider-estimated", "schedule-estimated"] },
+        "distanceAlongRoute": { "type": "number" },
+        "previousStop": { "type": "string" },
+        "currentStop": { "type": "string" },
+        "nextStop": { "type": "string" },
+        "stopSequence": { "type": "number" },
+        "phase": { "enum": ["incoming", "stopped", "in_transit", "unknown"] },
+        "scheduledArrival": { "type": "string", "format": "date-time" },
+        "estimatedArrival": { "type": "string", "format": "date-time" },
+        "realArrival": { "type": "string", "format": "date-time" },
+        "scheduledDeparture": { "type": "string", "format": "date-time" },
+        "estimatedDeparture": { "type": "string", "format": "date-time" },
+        "realDeparture": { "type": "string", "format": "date-time" },
+        "delaySeconds": { "type": "number" },
+        "scheduleDeviation": { "type": "number" },
+        "status": { "enum": ["scheduled", "confirmed", "in_progress", "delayed", "early", "completed", "cancelled", "skipped_stop", "unknown"] },
+        "checkedAt": { "type": "string", "format": "date-time" },
+        "sourceTimestamp": { "type": "string", "format": "date-time" },
+        "changedAt": { "type": "string", "format": "date-time" },
+        "confirmedAt": { "type": "string", "format": "date-time" },
+        "realtimeAvailable": { "type": "boolean" },
+        "stale": { "type": "boolean" }
+      }
+    },
+    "alert": {
+      "type": "object",
+      "required": ["alertId", "message"],
+      "properties": {
+        "alertId": { "type": "string" },
+        "message": { "type": "string" },
+        "provider": { "type": "string" },
+        "routeId": { "type": "string" },
+        "tripId": { "type": "string" },
+        "effect": { "type": "string" },
+        "severity": { "type": "string" },
+        "validFrom": { "type": "string", "format": "date-time" },
+        "validUntil": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

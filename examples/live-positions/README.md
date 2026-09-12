@@ -1,5 +1,11 @@
 # Minimal live-position examples
 
+> **Archivo historico, no operativo.** Estos ejemplos describen el contrato v1 y se conservan
+> unicamente como evidencia de la evolucion del proyecto. Para una instalacion nueva use
+> [`docs/guides/self-hosted-live-worker.md`](../../docs/guides/self-hosted-live-worker.md), el
+> contrato v2 y `live/`. Ningun runtime, build o deploy importa este directorio; la prueba offline
+> `tests/live-positions-contract.test.mjs` se conserva unicamente como regresion de compatibilidad v1.
+
 These dependency-free examples implement the provider-neutral contract in
 [`docs/contracts/live-positions.schema.json`](../../docs/contracts/live-positions.schema.json).
 They are intentionally not deployable configuration and contain no real provider URL, route ID,

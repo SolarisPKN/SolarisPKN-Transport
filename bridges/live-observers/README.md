@@ -1,5 +1,9 @@
 # Bridges locales de posiciones y arribos
 
+> **Archivo historico, deshabilitado y no desplegable.** ADR 0005 reemplazo este enfoque por
+> conectores API fail-closed dentro de `live/`. Ningun workflow, paquete raiz ni Worker vigente
+> ejecuta este directorio.
+
 Este paquete ejecuta un observador deliberadamente separado de los cronogramas versionados:
 
 - **Cuando SUBO** rota paginas HTML publicas de paradas con un minimo obligatorio de una solicitud por minuto. Extrae

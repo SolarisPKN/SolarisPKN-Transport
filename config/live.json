@@ -1,0 +1,133 @@
+{
+  "schemaVersion": 1,
+  "deployment": {
+    "workerName": "solarispkn-transport-live",
+    "r2Bucket": "solarispkn-transport-live",
+    "currentKey": "current.json",
+    "cron": "*/2 * * * *",
+    "allowedOrigins": [
+      "https://villars.solarispkn.com.ar"
+    ]
+  },
+  "quality": {
+    "staleAfterSeconds": 600,
+    "positionToleranceMeters": {
+      "train": 8,
+      "bus": 12
+    }
+  },
+  "providers": [
+    {
+      "id": "sofse",
+      "module": "sofse",
+      "enabled": true,
+      "baseUrl": "https://api-servicios.sofse.gob.ar/v1"
+    },
+    {
+      "id": "gtfs-realtime",
+      "module": "gtfs-realtime",
+      "enabled": false,
+      "feeds": []
+    },
+    {
+      "id": "cuando-subo",
+      "module": "cuando-subo",
+      "enabled": false,
+      "baseUrl": "https://cuandosubo.sube.gob.ar/onebusaway-api-webapp/api/where",
+      "credentialEnv": "CUANDO_SUBO_API_KEY"
+    },
+    {
+      "id": "transporte-ya",
+      "module": "transporte-ya",
+      "enabled": false
+    }
+  ],
+  "lines": [
+    {
+      "id": "belgrano-sur-catan-lozano",
+      "mode": "train",
+      "enabled": true,
+      "name": "González Catán - Lozano",
+      "branchId": "67",
+      "connectors": [
+        {
+          "provider": "sofse",
+          "priority": 10,
+          "external": {
+            "branchId": 67,
+            "stationIds": [154, 3700, 4226, 6000]
+          }
+        }
+      ]
+    },
+    {
+      "id": "sarmiento-merlo-lobos",
+      "mode": "train",
+      "enabled": true,
+      "name": "Merlo - Lobos",
+      "branchId": "53",
+      "connectors": [
+        {
+          "provider": "sofse",
+          "priority": 10,
+          "external": {
+            "branchId": 53,
+            "stationIds": [269, 254, 225]
+          }
+        }
+      ]
+    },
+    {
+      "id": "136-rapido",
+      "mode": "bus",
+      "enabled": true,
+      "name": "136 Rápido",
+      "connectors": [
+        {
+          "provider": "cuando-subo",
+          "priority": 10,
+          "external": { "routeIds": ["739_670", "739_671"] }
+        }
+      ]
+    },
+    {
+      "id": "136-villars-plomer",
+      "mode": "bus",
+      "enabled": true,
+      "name": "136 Villars / Plomer",
+      "connectors": [
+        {
+          "provider": "transporte-ya",
+          "priority": 10,
+          "external": {}
+        }
+      ]
+    },
+    {
+      "id": "322-lujan",
+      "mode": "bus",
+      "enabled": true,
+      "name": "322 Luján",
+      "connectors": [
+        {
+          "provider": "cuando-subo",
+          "priority": 10,
+          "external": { "routeIds": ["135_1623", "135_1624"] }
+        }
+      ]
+    },
+    {
+      "id": "322-canuelas",
+      "mode": "bus",
+      "enabled": true,
+      "name": "322 Cañuelas",
+      "connectors": [
+        {
+          "provider": "cuando-subo",
+          "priority": 10,
+          "external": { "routeIds": ["135_1625", "135_1626"] }
+        }
+      ]
+    }
+  ]
+}

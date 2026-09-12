@@ -1,5 +1,9 @@
 # Referencia de integración de transporte vivo de Villars
 
+> **Snapshot historico e inerte.** No es codigo fuente vigente, no participa del build y no debe
+> desplegarse. La implementacion canonica self-hosted esta en `live/`; Villars-Informa conserva
+> solamente el frontend consumidor y una copia de recuperacion del Worker anterior.
+
 Este directorio es un paquete de trabajo para documentar en `SolarisPKN-Transport` una integración reutilizable de posiciones de trenes y colectivos. Fue copiado desde `Villars-Informa` como referencia verificable; **no es una segunda implementación canónica ni debe desplegarse desde esta ubicación**.
 
 ## Objetivo
@@ -12,7 +16,9 @@ Usar el caso real de Villars para producir documentación, un contrato JSON vers
 - posiciones estimadas;
 - datos vencidos o no disponibles.
 
-El código operativo continúa viviendo en `Villars-Informa`. `SolarisPKN-Transport` debe conservar la especificación, las decisiones arquitectónicas y ejemplos adaptables.
+El codigo operativo anterior vivia en `Villars-Informa`; desde ADR 0005 la implementacion live
+canonica vive en `SolarisPKN-Transport/live`. Este directorio conserva solamente la procedencia
+del prototipo reemplazado.
 
 ## Procedencia de los archivos
 

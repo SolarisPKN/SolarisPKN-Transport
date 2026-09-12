@@ -1,0 +1,92 @@
+name: Archivar y desplegar transporte live
+
+on:
+  schedule:
+    - cron: '37 8 * * *'
+  workflow_dispatch:
+    inputs:
+      archive_day:
+        description: Día UTC a archivar (YYYY-MM-DD); vacío usa ayer
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deploy-live
+  cancel-in-progress: false
+
+jobs:
+  archive-build-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      LIVE_WORKER_NAME: ${{ vars.LIVE_WORKER_NAME }}
+      LIVE_R2_BUCKET_NAME: ${{ vars.LIVE_R2_BUCKET_NAME }}
+      LIVE_CONFIG_PATH: ${{ vars.LIVE_CONFIG_PATH || 'config/live.json' }}
+      ARCHIVE_DAY: ${{ inputs.archive_day }}
+
+    steps:
+      - name: Clonar repositorio
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Configurar Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Instalar dependencias reproducibles
+        run: npm ci
+
+      - name: Resolver nombres exclusivos de esta instalación
+        run: npm run live:env
+
+      - name: Ejecutar pruebas live
+        run: npm test
+
+      - name: Preparar y verificar el Registry de ayer
+        run: npm run live:archive
+
+      - name: Commit diario único del Registry
+        shell: bash
+        run: |
+          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add History
+          if git diff --staged --quiet; then
+            echo "No hubo deltas para archivar." >> "$GITHUB_STEP_SUMMARY"
+          else
+            git commit -m "Archivar Registry live diario [skip ci]"
+            git push
+          fi
+
+      - name: Borrar deltas temporales de R2 después del commit confirmado
+        if: hashFiles('.live-build/archive-manifest.json') != ''
+        run: node scripts/archive-live-history.mjs --cleanup
+
+      - name: Compilar plan y Worker
+        run: npm run live:build
+
+      - name: Verificar configuración sin desplegar
+        run: npx wrangler deploy --dry-run --config .live-build/wrangler.jsonc
+
+      - name: Configurar CORS acotado del bucket
+        run: npx wrangler r2 bucket cors set "$LIVE_R2_BUCKET_NAME" --file .live-build/r2-cors.json --force
+
+      - name: Desplegar instancia propia
+        run: npx wrangler deploy --config .live-build/wrangler.jsonc
+
+      - name: Resumen
+        run: |
+          echo "## Transporte live" >> "$GITHUB_STEP_SUMMARY"
+          echo "Worker: $LIVE_WORKER_NAME" >> "$GITHUB_STEP_SUMMARY"
+          echo "Bucket: $LIVE_R2_BUCKET_NAME" >> "$GITHUB_STEP_SUMMARY"
+          echo "Cron: */2 * * * * (trenes y colectivos alternados cada 4 minutos)" >> "$GITHUB_STEP_SUMMARY"

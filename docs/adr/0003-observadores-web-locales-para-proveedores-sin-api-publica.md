@@ -1,6 +1,8 @@
 # ADR 0003: observadores web locales para proveedores sin API publica reutilizable
 
-- Estado: Aceptada parcialmente; Transporte YA bloqueado por prohibicion expresa
+> **Obsoleto y no operativo.** [ADR 0005](0005-worker-live-self-hosted-y-registry-delta.md) reemplaza los bridges por conectores API fail-closed. No se automatizan interfaces web ni se ejecuta Transporte YA sin autorización.
+
+- Estado: Obsoleto; conservado solo como registro de decision
 - Fecha: 2026-09-02
 - Responsables: mantenedores de SolarisPKN-Transport y Villars-Informa
 
@@ -48,6 +50,7 @@ telemetria.
 
 ## Referencias
 
-- `bridges/live-observers/README.md`
+- `bridges/live-observers/README.md` (archivo historico inerte)
 - `docs/adr/0002-posiciones-vivas-separadas-de-cronogramas.md`
-- `docs/contracts/live-positions.schema.json`
+- `docs/adr/0005-worker-live-self-hosted-y-registry-delta.md`
+- `docs/contracts/live-state-v2.schema.json`

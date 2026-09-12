@@ -1,5 +1,9 @@
 # Integrar posiciones en tiempo real
 
+> **Guia historica del contrato v1.** Se conserva como contexto, pero no describe el Worker vigente.
+> Para implementar o desplegar una instancia use
+> [`self-hosted-live-worker.md`](self-hosted-live-worker.md) y el schema v2.
+
 Esta guía explica cómo incorporar una capa viva a un sitio que ya consulta cronogramas de
 SolarisPKN-Transport. Es reusable, independiente del proveedor y del producto de nube, y no despliega ni
 modifica infraestructura.

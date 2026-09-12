@@ -1,5 +1,7 @@
 # ADR 0002: Posiciones vivas separadas de cronogramas
 
+> **Superado por [ADR 0005](0005-worker-live-self-hosted-y-registry-delta.md).** Se conserva por trazabilidad histórica; no describe el runtime actual.
+
 - Estado: Aceptada
 - Fecha: 2026-08-30
 - Responsables: mantenedores de SolarisPKN-Transport
@@ -166,17 +168,18 @@ las sanas y deja al cliente con un único contrato pequeño.
 
 ## Acciones de implementación
 
-- Usar la [guía reusable](../guides/integrar-posiciones-en-tiempo-real.md) para cada integración.
-- Validar el contrato y las reglas semánticas antes de publicar o reemplazar un snapshot.
-- Mantener fixtures positivos y negativos en `tests/fixtures/live-positions/`.
-- Ejecutar `node --test tests/live-positions-contract.test.mjs` sin red en cada cambio de contrato.
-- Versionar `schemaVersion` y redactar una migración antes de cualquier cambio incompatible.
-- Definir para cada proveedor autorización, límites, atribución, timeouts, backoff y ventana de retención.
-- No desplegar los ejemplos tal cual ni copiar identificadores, dominios o credenciales de Villars.
+- Aplicar [ADR 0005](0005-worker-live-self-hosted-y-registry-delta.md) y la
+  [guia self-hosted vigente](../guides/self-hosted-live-worker.md).
+- Validar el contrato v2 y sus reglas semanticas antes de reemplazar un snapshot.
+- Mantener los conectores deshabilitados sin requests hasta configurar una fuente valida.
+- Versionar `schemaVersion` y redactar una migracion antes de cualquier cambio incompatible.
+- Definir para cada proveedor autorizacion, limites, atribucion, timeouts, backoff y retencion.
+- Conservar los ejemplos v1 solo como archivo historico; no importarlos ni desplegarlos.
 
 ## Referencias
 
 - [ADR 0001: cronogramas diarios con XLSX y SQLite](0001-cronogramas-diarios-con-fallback.md)
-- [Guía para integrar posiciones en tiempo real](../guides/integrar-posiciones-en-tiempo-real.md)
-- [Ejemplos mínimos](../../examples/live-positions/README.md)
-- [Referencia histórica de Villars-Informa](../resources/villars-live-transport-reference/README.md)
+- [ADR 0005: Worker live self-hosted y Registry por deltas](0005-worker-live-self-hosted-y-registry-delta.md)
+- [Guia vigente del Worker self-hosted](../guides/self-hosted-live-worker.md)
+- [Ejemplos v1 archivados](../../examples/live-positions/README.md)
+- [Snapshot historico de Villars-Informa](../resources/villars-live-transport-reference/README.md)

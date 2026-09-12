@@ -298,29 +298,40 @@ For the complete rationale and reproducible endpoint research, read:
 - [`docs/research/trenes-argentinos-api.md`](docs/research/trenes-argentinos-api.md)
 - [`docs/research/cuando-subo-api.md`](docs/research/cuando-subo-api.md)
 
-## Reusable live-position contract
+## Self-hosted live system
 
-Live tracking is documented as a separate, short-lived layer. These resources are provider- and
-cloud-neutral; they do not deploy infrastructure or contain real credentials, account identifiers,
-buckets, domains, or mobile packages:
+Realtime collection is now executable infrastructure, but it remains strictly separate from the timetable
+pipeline. `config/live.json` declares lines, enabled providers, priorities and external identifiers;
+`scripts/build-live-worker.mjs` validates that configuration, builds an execution plan and bundles one
+Cloudflare Worker. Every fork must provide its own Worker name, R2 bucket and Cloudflare credentials. This
+project does **not** operate or advertise a shared SolarisPKN API.
 
-- [`ADR 0002: live positions separated from timetables`](docs/adr/0002-posiciones-vivas-separadas-de-cronogramas.md)
-- [`Reusable real-time integration guide`](docs/guides/integrar-posiciones-en-tiempo-real.md)
-- [`Canonical JSON Schema`](docs/contracts/live-positions.schema.json)
-- [`Sanitized fixtures`](tests/fixtures/live-positions/)
-- [`Minimal aggregator and web-client examples`](examples/live-positions/README.md)
-- [`Offline contract tests`](tests/live-positions-contract.test.mjs)
+One `*/2 * * * *` trigger uses the event `scheduledTime`: trains run at minutes divisible by four and buses
+at minutes whose remainder is two. Each category is therefore checked every four minutes without processing
+both in one invocation. Disabled connectors never run, and a lower-priority connector is contacted only when
+the preferred source fails, is stale, or produces no valid data for that line.
 
-The contract distinguishes provider-reported and estimated coordinates, active vehicles without a
-position, fresh and stale data, partial and total provider failure, semantically invalid HTTP 200
-responses, and explicit timetable-only fallback. A local timetable is never promoted to a live position.
+The Worker stores a small schema-v2 `current.json` plus one delta under `history/YYYY-MM-DD/HHmm-mode.json`.
+The daily Action verifies and commits `History/YYYY/MM/registry-YYYY-MM-DD.ndjson.gz` before deleting the
+temporary R2 objects. It never imports timetable workbooks or estimates positions from schedules.
+
+Implemented connectors:
+
+- SOFSE: enabled in the sample Villars configuration.
+- GTFS-Realtime: complete generic decoder; enabled only when a valid feed is configured.
+- Cuándo SUBO / OneBusAway: implemented but disabled by default and never called without configuration.
+- Transporte YA: fail-closed stub, disabled until an authorized API exists; no scraping.
+
+Read the [self-hosted live deployment guide](docs/guides/self-hosted-live-worker.md),
+[ADR 0005](docs/adr/0005-worker-live-self-hosted-y-registry-delta.md), and the
+[schema-v2 contract](docs/contracts/live-state-v2.schema.json).
 
 ## Technology stack
 
 - **Python 3.11+** for discovery, validation, XLSX generation, and SQLite import
 - **openpyxl** for spreadsheet parsing and generation
 - **SQLite** for portable, indexed timetable queries
-- **Node.js** for the SOFSE web connector and contract tests
+- **Node.js** for live connectors, Worker compilation, Registry archival, and contract tests
 - **GitHub Actions** for scheduled execution and artifact publication
 - **REST / OneBusAway** for upstream integration
 
@@ -335,7 +346,7 @@ SolarisPKN-Transport follows four rules:
 
 ## Roadmap
 
-- Add more train and bus providers through isolated connectors.
+- Add authorized train and bus providers through isolated connectors.
 - Expose documented read-only queries for upcoming services from `horarios.db`.
 - Add publication-date and anomaly dashboards for catalog and schedule drift.
 - Model holidays and exceptional services when a reliable source becomes available.

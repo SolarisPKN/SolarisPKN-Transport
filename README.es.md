@@ -298,29 +298,41 @@ Para conocer la justificación completa y la investigación reproducible de endp
 - [`docs/research/trenes-argentinos-api.md`](docs/research/trenes-argentinos-api.md)
 - [`docs/research/cuando-subo-api.md`](docs/research/cuando-subo-api.md)
 
-## Contrato reusable de posiciones vivas
+## Sistema live self-hosted
 
-El seguimiento vivo está documentado como una capa separada y de vida corta. Estos recursos son
-independientes del proveedor y de la nube: no despliegan infraestructura ni contienen credenciales,
-identificadores de cuenta, buckets, dominios o paquetes móviles reales.
+La recolección en tiempo real ahora es infraestructura ejecutable, pero sigue estrictamente separada del
+pipeline de cronogramas. `config/live.json` declara líneas, proveedores habilitados, prioridades e IDs
+externos; `scripts/build-live-worker.mjs` valida esa configuración, compila un plan de ejecución y empaqueta
+un Worker de Cloudflare. Cada fork debe aportar su propio nombre de Worker, bucket R2 y credenciales de
+Cloudflare. Este proyecto **no** opera ni promociona una API compartida de SolarisPKN.
 
-- [`ADR 0002: posiciones vivas separadas de cronogramas`](docs/adr/0002-posiciones-vivas-separadas-de-cronogramas.md)
-- [`Guía reusable de integración en tiempo real`](docs/guides/integrar-posiciones-en-tiempo-real.md)
-- [`JSON Schema canónico`](docs/contracts/live-positions.schema.json)
-- [`Fixtures sanitizados`](tests/fixtures/live-positions/)
-- [`Ejemplos mínimos de agregador y cliente web`](examples/live-positions/README.md)
-- [`Pruebas offline del contrato`](tests/live-positions-contract.test.mjs)
+Un solo trigger `*/2 * * * *` usa `scheduledTime`: trenes en minutos divisibles por cuatro y colectivos en
+minutos cuyo resto es dos. Cada categoría se revisa así cada cuatro minutos sin procesar ambas en una misma
+invocación. Los conectores deshabilitados jamás se ejecutan y un proveedor de menor prioridad sólo se consulta
+si el principal falla, está vencido o no produce información válida para esa línea.
 
-El contrato distingue coordenadas informadas y estimadas, unidades activas sin posición, datos frescos y
-vencidos, fallos parciales y totales de proveedores, respuestas HTTP 200 semánticamente inválidas y el
-fallback explícito a sólo cronogramas. Un horario local nunca se presenta como posición viva.
+El Worker guarda un `current.json` pequeño con schema v2 y un delta en
+`history/YYYY-MM-DD/HHmm-modo.json`. La Action diaria verifica y commitea
+`History/YYYY/MM/registry-YYYY-MM-DD.ndjson.gz` antes de borrar los objetos temporales de R2. El Worker nunca
+carga planillas de horarios ni estima posiciones desde cronogramas.
+
+Conectores implementados:
+
+- SOFSE: habilitado en la configuración de ejemplo de Villars.
+- GTFS-Realtime: decoder genérico completo; sólo se habilita al configurar un feed válido.
+- Cuándo SUBO / OneBusAway: implementado pero deshabilitado por defecto; sin configuración no hace requests.
+- Transporte YA: stub fail-closed, deshabilitado hasta contar con API autorizada; no realiza scraping.
+
+Consultá la [guía de despliegue self-hosted](docs/guides/self-hosted-live-worker.md), el
+[ADR 0005](docs/adr/0005-worker-live-self-hosted-y-registry-delta.md) y el
+[contrato schema v2](docs/contracts/live-state-v2.schema.json).
 
 ## Tecnologías
 
 - **Python 3.11+** para descubrimiento, validación, generación XLSX e importación SQLite
 - **openpyxl** para leer y generar hojas de cálculo
 - **SQLite** para consultas portables e indexadas de cronogramas
-- **Node.js** para el conector web de SOFSE y sus pruebas de contrato
+- **Node.js** para conectores live, compilación del Worker, Registry y pruebas de contrato
 - **GitHub Actions** para ejecución programada y publicación de artefactos
 - **REST / OneBusAway** para integraciones externas
 
@@ -335,7 +347,7 @@ SolarisPKN-Transport sigue cuatro reglas:
 
 ## Hoja de ruta
 
-- Incorporar más proveedores ferroviarios y de colectivos mediante conectores aislados.
+- Incorporar proveedores ferroviarios y de colectivos autorizados mediante conectores aislados.
 - Exponer consultas de sólo lectura documentadas para los próximos servicios de `horarios.db`.
 - Agregar tableros de fecha de publicación y anomalías del catálogo y los horarios.
 - Modelar feriados y servicios excepcionales cuando exista una fuente confiable.
