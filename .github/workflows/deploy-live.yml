@@ -32,6 +32,23 @@ jobs:
       ARCHIVE_DAY: ${{ inputs.archive_day }}
 
     steps:
+      - name: Verificar secretos requeridos antes del despliegue
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=0
+          for variable in CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_API_TOKEN R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY; do
+            if [[ -z "${!variable:-}" ]]; then
+              echo "::error title=Secreto no configurado::Configurar GitHub Actions secret: $variable"
+              echo "- Falta el secret \`$variable\`." >> "$GITHUB_STEP_SUMMARY"
+              missing=1
+            fi
+          done
+          if (( missing )); then
+            echo "El archivado y despliegue se detienen para evitar operaciones parciales." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
       - name: Clonar repositorio
         uses: actions/checkout@v5
         with:
