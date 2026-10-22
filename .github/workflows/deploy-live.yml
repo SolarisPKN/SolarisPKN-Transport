@@ -40,7 +40,7 @@ jobs:
       - name: Configurar Node
         uses: actions/setup-node@v5
         with:
-          node-version: '22'
+          node-version: '22.23.4'
           cache: npm
 
       - name: Instalar dependencias reproducibles
