@@ -1,0 +1,37 @@
+name: Dependency security verification
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.4'
+          cache: npm
+      - name: Install exactly locked dependencies
+        run: npm ci
+      - name: Assert fixed sharp version throughout dependency tree
+        run: |
+          node -e "const lock=require('./package-lock.json');for(const [name,p] of Object.entries(lock.packages)){if((name.endsWith('/sharp')||name.includes('/@img/sharp-'))&&p.version&&(p.version.startsWith('0.35.')&&Number(p.version.split('.')[2])<5)){throw Error('Vulnerable sharp in '+name+': '+p.version)}}"
+          npm ls sharp
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install Python test requirements
+        run: python -m pip install --requirement requirements.txt
+      - name: Run project tests and build
+        run: npm run validate
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
